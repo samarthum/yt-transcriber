@@ -8,10 +8,12 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 })
 
-// Create a custom fetch function
-async function customFetch(url: string) {
+// Fix the custom fetch function type definition
+const customFetch: typeof fetch = (url: string | URL | Request, init?: RequestInit) => {
   return fetch(url, {
+    ...init,
     headers: {
+      ...init?.headers,
       'User-Agent': USER_AGENT,
       'Accept-Language': 'en-US,en;q=0.9',
     }
