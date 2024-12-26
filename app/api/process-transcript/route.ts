@@ -171,7 +171,7 @@ If you cannot complete the formatting in one response, end with <continued>. If 
       fullResponse += (fullResponse ? '\n' : '') + cleanResponse
 
       messages.push({
-        role: "assistant" as const,
+        role: "user" as const,
         content: cleanResponse
       })
 

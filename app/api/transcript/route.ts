@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
-import OpenAI from 'openai'
-import { YoutubeTranscript } from 'youtube-transcript-api'
+import { YoutubeTranscript } from 'youtube-transcript'
 import Anthropic from '@anthropic-ai/sdk'
 
 // Define error types
