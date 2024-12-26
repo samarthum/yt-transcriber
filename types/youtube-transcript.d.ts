@@ -5,7 +5,12 @@ declare module 'youtube-transcript' {
         offset: number;
     }
 
+    export interface TranscriptConfig {
+        lang?: string;
+        auto?: boolean;
+    }
+
     export class YoutubeTranscript {
-        static fetchTranscript(videoId: string): Promise<TranscriptResponse[]>;
+        static fetchTranscript(videoId: string, config?: TranscriptConfig): Promise<TranscriptResponse[]>;
     }
 } 
