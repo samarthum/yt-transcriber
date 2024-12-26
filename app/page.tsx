@@ -1,101 +1,182 @@
-import Image from "next/image";
+'use client'
+
+import { useState } from 'react'
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Loader2 } from 'lucide-react'
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import ReactMarkdown from 'react-markdown'
+
+interface TranscriptData {
+  videoInfo: {
+    title: string
+    channelName: string
+    publishedAt: string
+    thumbnailUrl: string
+  }
+  structuredTranscript: string
+  summary: string
+}
+
+interface TranscriptDisplayProps {
+  structuredTranscript: string
+  summary: string
+}
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const [url, setUrl] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [data, setData] = useState<TranscriptData | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setError(null)
+    setData(null)
+
+    try {
+      const response = await fetch('/api/process-transcript', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ videoUrl: url }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'An error occurred while processing the transcript')
+      }
+
+      setData(result)
+    } catch (err) {
+      setError(err.message || 'An unexpected error occurred')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const TranscriptDisplay = ({ structuredTranscript, summary }: TranscriptDisplayProps) => {
+    return (
+      <div className="max-w-3xl mx-auto p-6">
+        <div className="mb-8 p-4 bg-gray-50 rounded-lg">
+          <h2 className="text-2xl font-bold mb-4">Executive Summary</h2>
+          <ReactMarkdown
+            className="prose prose-blue max-w-none"
+            components={{
+              // Style bullet points with better spacing
+              ul: ({ node, ...props }) => (
+                <ul className="list-disc pl-4 space-y-4" {...props} />
+              ),
+              // Add spacing between bullet points
+              li: ({ node, ...props }) => (
+                <li className="mb-3" {...props} />
+              ),
+              // Ensure paragraphs have good spacing
+              p: ({ node, ...props }) => (
+                <p className="mb-6" {...props} />
+              ),
+              // Style bold text
+              strong: ({ node, ...props }) => (
+                <strong className="font-bold" {...props} />
+              ),
+              // Style italics
+              em: ({ node, ...props }) => (
+                <em className="italic" {...props} />
+              ),
+              // Style headings
+              h1: ({ node, ...props }) => (
+                <h1 className="text-2xl font-bold mt-6 mb-4" {...props} />
+              ),
+              h2: ({ node, ...props }) => (
+                <h2 className="text-xl font-bold mt-4 mb-3" {...props} />
+              ),
+            }}
           >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+            {summary}
+          </ReactMarkdown>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
+
+        <div className="mt-8">
+          <h2 className="text-2xl font-bold mb-4">Formatted Transcript</h2>
+          <ReactMarkdown
+            className="prose prose-blue max-w-none"
+            components={{
+              // Same component styling as above
+              ul: ({ node, ...props }) => (
+                <ul className="list-disc pl-4 space-y-2" {...props} />
+              ),
+              ol: ({ node, ...props }) => (
+                <ol className="list-decimal pl-4 space-y-2" {...props} />
+              ),
+              strong: ({ node, ...props }) => (
+                <strong className="font-bold" {...props} />
+              ),
+              em: ({ node, ...props }) => (
+                <em className="italic" {...props} />
+              ),
+              h1: ({ node, ...props }) => (
+                <h1 className="text-2xl font-bold mt-6 mb-4" {...props} />
+              ),
+              h2: ({ node, ...props }) => (
+                <h2 className="text-xl font-bold mt-4 mb-3" {...props} />
+              ),
+              p: ({ node, ...props }) => (
+                <p className="mb-4" {...props} />
+              ),
+            }}
+          >
+            {structuredTranscript}
+          </ReactMarkdown>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="container mx-auto p-4 max-w-3xl">
+      <h1 className="text-3xl font-bold mb-8 text-center">YouTube Transcript Processor</h1>
+      <form onSubmit={handleSubmit} className="mb-8">
+        <div className="flex gap-2">
+          <Input
+            type="text"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder="Enter YouTube URL"
+            className="flex-grow"
           />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+          <Button type="submit" disabled={loading}>
+            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Process'}
+          </Button>
+        </div>
+      </form>
+
+      {error && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {data && (
+        <Card>
+          <CardHeader>
+            <CardTitle>{data.videoInfo.title}</CardTitle>
+            <CardDescription>{data.videoInfo.channelName} • {new Date(data.videoInfo.publishedAt).toLocaleDateString()}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <img src={data.videoInfo.thumbnailUrl} alt={data.videoInfo.title} className="w-full mb-4 rounded-lg" />
+            <TranscriptDisplay
+              structuredTranscript={data.structuredTranscript}
+              summary={data.summary}
+            />
+          </CardContent>
+        </Card>
+      )}
     </div>
-  );
+  )
 }
+

@@ -1,5 +1,5 @@
 {
-  "name": "yt-transcript",
+  "name": "youtube-transcript-processor",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -9,18 +9,27 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "react": "^18",
-    "react-dom": "^18",
-    "next": "14.2.16"
+    "@anthropic-ai/sdk": "^0.18.0",
+    "@dofy/youtube-caption-fox": "^1.0.2",
+    "@radix-ui/react-slot": "^1.1.1",
+    "@types/node": "20.11.30",
+    "@types/react": "18.2.67",
+    "@types/react-dom": "18.2.22",
+    "autoprefixer": "10.4.19",
+    "class-variance-authority": "^0.7.1",
+    "lucide-react": "^0.469.0",
+    "next": "14.2.0",
+    "postcss": "8.4.38",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "react-markdown": "^9.0.1",
+    "shadcn-ui": "^0.9.4",
+    "tailwind-merge": "^2.6.0",
+    "tailwindcss": "3.4.1",
+    "tailwindcss-animate": "^1.0.7",
+    "typescript": "5.4.3"
   },
   "devDependencies": {
-    "typescript": "^5",
-    "@types/node": "^20",
-    "@types/react": "^18",
-    "@types/react-dom": "^18",
-    "postcss": "^8",
-    "tailwindcss": "^3.4.1",
-    "eslint": "^8",
-    "eslint-config-next": "14.2.16"
+    "@tailwindcss/typography": "^0.5.15"
   }
 }
