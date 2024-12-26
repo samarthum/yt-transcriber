@@ -8,14 +8,18 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 })
 
-YoutubeTranscript.setFetchFunction(async (url: string) => {
+// Create a custom fetch function
+async function customFetch(url: string) {
   return fetch(url, {
     headers: {
       'User-Agent': USER_AGENT,
       'Accept-Language': 'en-US,en;q=0.9',
     }
   });
-});
+}
+
+// Override global fetch for this module
+global.fetch = customFetch;
 
 export async function POST(req: Request) {
   try {
