@@ -2,9 +2,20 @@ import { NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { YoutubeTranscript } from 'youtube-transcript'
 
+const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36';
+
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 })
+
+YoutubeTranscript.setFetchFunction(async (url: string) => {
+  return fetch(url, {
+    headers: {
+      'User-Agent': USER_AGENT,
+      'Accept-Language': 'en-US,en;q=0.9',
+    }
+  });
+});
 
 export async function POST(req: Request) {
   try {
@@ -82,19 +93,48 @@ async function fetchVideoInfo(videoId: string) {
 
 async function fetchTranscript(videoId: string): Promise<string | null> {
   try {
-    // First try regular captions
-    try {
-      const transcript = await YoutubeTranscript.fetchTranscript(videoId)
-      return transcript.map(entry => entry.text).join(' ')
-    } catch (firstError) {
-      console.log('First attempt failed:', firstError)
+    // Try multiple approaches to get the transcript
+    const attempts = [
+      // Attempt 1: Try manual captions
+      () => YoutubeTranscript.fetchTranscript(videoId),
+      // Attempt 2: Try auto-generated captions
+      () => YoutubeTranscript.fetchTranscript(videoId, { auto: true }),
+      // Attempt 3: Try English captions specifically
+      () => YoutubeTranscript.fetchTranscript(videoId, { lang: 'en' }),
+      // Attempt 4: Try auto-generated English captions
+      () => YoutubeTranscript.fetchTranscript(videoId, { lang: 'en', auto: true })
+    ]
 
-      // Try auto-generated captions as fallback
-      const transcript = await YoutubeTranscript.fetchTranscript(videoId)
-      return transcript.map(entry => entry.text).join(' ')
+    let lastError = null
+
+    // Try each method until one works
+    for (const attempt of attempts) {
+      try {
+        console.log(`Attempting to fetch transcript for video ${videoId}...`)
+        const transcript = await attempt()
+        console.log('Successfully fetched transcript')
+        return transcript.map(entry => entry.text).join(' ')
+      } catch (error) {
+        lastError = error
+        console.log('Attempt failed:', error instanceof Error ? error.message : error)
+        // Continue to next attempt
+        continue
+      }
     }
+
+    // If we get here, all attempts failed
+    console.error('All transcript fetch attempts failed. Last error:', lastError)
+    if (lastError instanceof Error) {
+      console.error('Final error details:', {
+        message: lastError.message,
+        name: lastError.name,
+        stack: lastError.stack
+      })
+    }
+    return null
+
   } catch (error: unknown) {
-    console.error('All transcript fetch attempts failed:', error)
+    console.error('Unexpected error in fetchTranscript:', error)
     if (error instanceof Error) {
       console.error('Error details:', {
         message: error.message,
@@ -106,7 +146,7 @@ async function fetchTranscript(videoId: string): Promise<string | null> {
         error.message.includes('Transcript is disabled') ||
         error.message.includes('Could not find automatic captions') ||
         error.message.includes('No captions found') ||
-        error.message.includes('Subtitles are disabled for this video')
+        error.message.includes('Subtitles are disabled')
       ) {
         return null
       }
