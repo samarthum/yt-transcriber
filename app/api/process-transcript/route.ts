@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
-import { getCaptions } from '@dofy/youtube-caption-fox'
+import { YoutubeTranscript } from 'youtube-transcript'
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -82,18 +82,12 @@ async function fetchVideoInfo(videoId: string) {
 
 async function fetchTranscript(videoId: string): Promise<string | null> {
   try {
-    const { captions } = await getCaptions(videoId)
-
-    if (!captions || captions.length === 0) {
-      console.error('No captions found for video ID:', videoId)
-      return null
-    }
-
-    const transcriptText = captions.map(caption => caption.text).join(' ')
+    const transcript = await YoutubeTranscript.fetchTranscript(videoId)
+    const transcriptText = transcript.map(entry => entry.text).join(' ')
     return transcriptText
   } catch (error: unknown) {
     console.error('Error fetching transcript:', error)
-    if (error instanceof Error && error.message.includes('Captions not found')) {
+    if (error instanceof Error && error.message.includes('Transcript is disabled')) {
       return null
     }
     throw error
