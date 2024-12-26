@@ -82,13 +82,54 @@ async function fetchVideoInfo(videoId: string) {
 
 async function fetchTranscript(videoId: string): Promise<string | null> {
   try {
-    const transcript = await YoutubeTranscript.fetchTranscript(videoId)
-    const transcriptText = transcript.map(entry => entry.text).join(' ')
-    return transcriptText
+    // First attempt with default language
+    try {
+      const transcript = await YoutubeTranscript.fetchTranscript(videoId)
+      return transcript.map(entry => entry.text).join(' ')
+    } catch (firstError) {
+      console.log('First attempt failed:', firstError)
+
+      // Second attempt with explicit English language
+      try {
+        const transcript = await YoutubeTranscript.fetchTranscript(videoId, {
+          lang: 'en'  // Try explicitly requesting English captions
+        })
+        return transcript.map(entry => entry.text).join(' ')
+      } catch (secondError) {
+        console.log('Second attempt failed:', secondError)
+
+        // Third attempt with auto-generated captions
+        try {
+          const transcript = await YoutubeTranscript.fetchTranscript(videoId, {
+            lang: 'en-US',
+            auto: true  // Try auto-generated captions
+          })
+          return transcript.map(entry => entry.text).join(' ')
+        } catch (thirdError) {
+          console.log('Third attempt failed:', thirdError)
+          throw thirdError
+        }
+      }
+    }
   } catch (error: unknown) {
-    console.error('Error fetching transcript:', error)
-    if (error instanceof Error && error.message.includes('Transcript is disabled')) {
-      return null
+    console.error('All transcript fetch attempts failed:', error)
+    if (error instanceof Error) {
+      // Log more detailed error information
+      console.error('Error details:', {
+        message: error.message,
+        name: error.name,
+        stack: error.stack
+      })
+
+      // Check for various error conditions
+      if (
+        error.message.includes('Transcript is disabled') ||
+        error.message.includes('Could not find automatic captions') ||
+        error.message.includes('No captions found') ||
+        error.message.includes('Subtitles are disabled for this video')
+      ) {
+        return null
+      }
     }
     throw error
   }
