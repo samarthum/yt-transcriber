@@ -7,6 +7,23 @@ type TranscriptError = {
   message: string;
 }
 
+// Add this at the top of the file
+const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36';
+
+// Add custom fetch configuration
+const customFetch = async (url: string | URL | Request, init?: RequestInit) => {
+  const headers = {
+    'User-Agent': USER_AGENT,
+    'Accept-Language': 'en-US,en;q=0.9',
+    ...(init?.headers || {})
+  };
+
+  return fetch(url, {
+    ...init,
+    headers
+  });
+};
+
 export async function POST(req: Request) {
   try {
     const { videoUrl } = await req.json()
@@ -55,7 +72,9 @@ async function fetchVideoInfo(videoId: string) {
     throw new Error('YOUTUBE_API_KEY is not set in the environment variables')
   }
 
-  const response = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${videoId}&key=${apiKey}`)
+  const response = await customFetch(
+    `https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${videoId}&key=${apiKey}`
+  );
   const data = await response.json()
 
   if (data.items && data.items.length > 0) {
@@ -80,12 +99,55 @@ async function fetchVideoInfo(videoId: string) {
 
 async function fetchTranscript(videoId: string): Promise<string> {
   try {
-    const transcript = await YoutubeTranscript.fetchTranscript(videoId)
-    const transcriptText = transcript.map(entry => entry.text).join(' ')
-    console.log('Raw transcript from YoutubeTranscript:', transcriptText.substring(0, 500) + '...')
-    return transcriptText
-  } catch (error) {
-    console.error('Error fetching transcript:', error)
+    // Try multiple approaches to get the transcript
+    const attempts = [
+      // Attempt 1: Try manual captions
+      () => YoutubeTranscript.fetchTranscript(videoId),
+      // Attempt 2: Try auto-generated captions
+      () => YoutubeTranscript.fetchTranscript(videoId, { auto: true }),
+      // Attempt 3: Try English captions specifically
+      () => YoutubeTranscript.fetchTranscript(videoId, { lang: 'en' }),
+      // Attempt 4: Try auto-generated English captions
+      () => YoutubeTranscript.fetchTranscript(videoId, { lang: 'en', auto: true })
+    ]
+
+    let lastError = null
+
+    // Try each method until one works
+    for (const attempt of attempts) {
+      try {
+        console.log(`Attempting to fetch transcript for video ${videoId}...`)
+        const transcript = await attempt()
+        console.log('Successfully fetched transcript')
+        return transcript.map(entry => entry.text).join(' ')
+      } catch (error) {
+        lastError = error
+        console.log('Attempt failed:', error instanceof Error ? error.message : error)
+        // Continue to next attempt
+        continue
+      }
+    }
+
+    // If we get here, all attempts failed
+    console.error('All transcript fetch attempts failed. Last error:', lastError)
+    if (lastError instanceof Error) {
+      console.error('Final error details:', {
+        message: lastError.message,
+        name: lastError.name,
+        stack: lastError.stack
+      })
+    }
+    throw lastError
+
+  } catch (error: unknown) {
+    console.error('Unexpected error in fetchTranscript:', error)
+    if (error instanceof Error) {
+      console.error('Error details:', {
+        message: error.message,
+        name: error.name,
+        stack: error.stack
+      })
+    }
     throw error
   }
 }

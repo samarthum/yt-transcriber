@@ -3,14 +3,18 @@ import Anthropic from '@anthropic-ai/sdk'
 import { YoutubeTranscript } from 'youtube-transcript'
 
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36';
+const TARGET_CHUNK_SIZE = 1500;
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 })
 
+// Store the original fetch
+const originalFetch = global.fetch;
+
 // Fix the custom fetch function type definition
 const customFetch: typeof fetch = (url: string | URL | Request, init?: RequestInit) => {
-  return fetch(url, {
+  return originalFetch(url, {
     ...init,
     headers: {
       ...init?.headers,
@@ -161,108 +165,277 @@ async function fetchTranscript(videoId: string): Promise<string | null> {
   }
 }
 
-async function processTranscript(rawTranscript: string) {
-  try {
-    let isComplete = false
-    let attempt = 1
-    const MAX_ATTEMPTS = 4
+function countWords(text: string): number {
+  return text.trim().split(/\s+/).length
+}
 
-    const messages = [
-      {
-        role: "user" as const,
-        content: `You are an expert content editor specializing in transforming raw YouTube video transcripts into well-structured, readable content while preserving all original information. Your task is to format the transcript and create a concise executive summary.
+function chunkTranscript(transcript: string): string[] {
+  const totalWords = countWords(transcript)
+  console.log(`\n=== Transcript Statistics ===`)
+  console.log(`Total words in transcript: ${totalWords}`)
+  console.log(`Target chunk size: ${TARGET_CHUNK_SIZE} words`)
 
-Here is the raw transcript you need to work with:
+  // First split into words while preserving spacing and punctuation
+  const words = transcript.split(/(\s+)/).filter(Boolean)
+  const chunks: string[] = []
+  let currentChunk: string[] = []
+  let currentWordCount = 0
 
-<raw_transcript>
-${rawTranscript}
-</raw_transcript>
+  console.log(`Total word segments: ${words.length}`)
 
-Please format your response in clean markdown, following these requirements:
+  for (let i = 0; i < words.length; i++) {
+    const word = words[i]
 
-1. Create an executive summary:
-   - Provide 3-5 key bullet points capturing the main ideas
-   - Keep each bullet point to 1-2 sentences
-   - Focus on the core message and key takeaways
+    // Add word to current chunk
+    currentChunk.push(word)
+    if (!word.match(/^\s+$/)) { // Only count non-whitespace as words
+      currentWordCount++
+    }
 
-2. Format the transcript:
-   - Use markdown headings (## for main sections, ### for subsections)
-   - Break text into logical paragraphs with proper line spacing
-   - Use **bold** for key concepts/terms
-   - Use proper markdown lists (- or 1. for lists)
-   - Use _italics_ for emphasis where appropriate
-   - Maintain any timestamps if present
-   - Preserve ALL original content - do not summarize or remove anything
-
-Your response must follow this exact structure:
-
-## Executive Summary
-
-- Key point 1
-- Key point 2
-- Key point 3
-
-## Formatted Transcript
-
-[Your formatted content here with proper markdown...]
-
-If you cannot complete the formatting in one response, end with <continued>. If you are finished, end with <complete>.`
+    // Check if we should create a new chunk
+    if (currentWordCount >= TARGET_CHUNK_SIZE) {
+      // Look ahead for a good breaking point (period, question mark, or exclamation)
+      let lookAhead = 0
+      while (i + lookAhead < words.length && lookAhead < 50) {
+        if (words[i + lookAhead].match(/[.!?]\s*$/)) {
+          i += lookAhead // Skip to this point
+          break
+        }
+        lookAhead++
       }
-    ]
 
-    let fullResponse = ''
+      // Add any remaining words up to the break point
+      while (lookAhead > 0) {
+        currentChunk.push(words[++i])
+        lookAhead--
+      }
 
-    while (!isComplete && attempt <= MAX_ATTEMPTS) {
+      // Create chunk and reset
+      const chunkText = currentChunk.join('')
+      chunks.push(chunkText)
+      console.log(`\nChunk ${chunks.length} created:`)
+      console.log(`- Word count: ${countWords(chunkText)}`)
+      console.log(`- First 100 chars: ${chunkText.slice(0, 100)}...`)
+
+      currentChunk = []
+      currentWordCount = 0
+    }
+  }
+
+  // Add final chunk if there's content left
+  if (currentChunk.length > 0) {
+    const chunkText = currentChunk.join('')
+    chunks.push(chunkText)
+    console.log(`\nFinal chunk ${chunks.length} created:`)
+    console.log(`- Word count: ${countWords(chunkText)}`)
+    console.log(`- First 100 chars: ${chunkText.slice(0, 100)}...`)
+  }
+
+  console.log(`\n=== Chunking Complete ===`)
+  console.log(`Created ${chunks.length} chunks`)
+  console.log(`Average chunk size: ${Math.round(totalWords / chunks.length)} words`)
+
+  return chunks
+}
+
+async function formatChunk(chunk: string, index: number, totalChunks: number, anthropic: Anthropic): Promise<string> {
+  console.log(`\n=== Formatting Chunk ${index + 1}/${totalChunks} ===`)
+  console.log(`Input chunk size: ${countWords(chunk)} words`)
+
+  const MAX_RETRIES = 3
+  const RETRY_DELAY = 1000 // 1 second
+
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      // Estimate tokens (rough approximation: 1 word ≈ 1.3 tokens)
+      const estimatedTokens = Math.ceil(countWords(chunk) * 1.3)
+      const MAX_OUTPUT_TOKENS = 8192
+
+      if (estimatedTokens > MAX_OUTPUT_TOKENS) {
+        console.error(`WARNING: Chunk ${index + 1} might exceed token limit!`)
+        console.error(`Estimated tokens: ${estimatedTokens} (max: ${MAX_OUTPUT_TOKENS})`)
+      }
+
       const message = await anthropic.messages.create({
         model: "claude-3-5-sonnet-20241022",
-        max_tokens: 8192,
-        messages: messages as Array<{ role: "user" | "assistant", content: string }>
+        max_tokens: Math.min(8192, estimatedTokens + 1000),
+        temperature: 0.4,
+        messages: [{
+          role: "user",
+          content: `Rewrite this transcript text to be more readable and concise, removing filler words and fixing grammar, but preserving the core meaning.
+Present the final output as well-structured Markdown with proper heading hierarchy and formatting:
+
+${chunk}
+
+ABSOLUTE REQUIREMENTS:
+1. Do NOT add any commentary or label like [Continued].
+2. Do NOT skip or summarize entire sections. You may remove meaningless filler words if they add no value.
+3. Format the document with proper heading hierarchy:
+   - Use ## for all section headings (no single # headings)
+   - Use ### for subsections if needed
+4. You may unify or replace repeated words (e.g. "um", "uh", etc.).
+5. Use punctuation, paragraph breaks, bullet points, and emphasis (*italics* or **bold**) where appropriate.
+6. Maintain the overall flow and important content from the original text.
+7. Do NOT create empty sections - if a section has no content, omit it entirely.
+
+FORMATTING GUIDELINES:
+- Start each section heading with ## (not #)
+- Add a blank line before and after each heading
+- Use **bold** for emphasis on key terms or important statements
+- Use *italics* for secondary emphasis or quoted terms
+- Use bullet points for lists or related items
+- Ensure each section has actual content (no empty sections)
+
+Please provide the final rewritten text without any extraneous markers or disclaimers.`
+        }]
       })
 
-      const response = message.content[0].text
+      const formattedText = message.content[0].text
+      return formattedText
 
-      if (!response) {
-        throw new Error('Failed to generate structured transcript and summary')
+    } catch (error) {
+      console.error(`Attempt ${attempt} failed for chunk ${index + 1}:`, error)
+
+      if (attempt === MAX_RETRIES) {
+        // If this was our last attempt, try returning a basic formatted version
+        console.error(`All retry attempts failed for chunk ${index + 1}. Falling back to basic formatting.`)
+        return `## Content
+
+${chunk.trim()}`
       }
 
-      // Remove continuation markers if present
-      const cleanResponse = response.replace(/<continued>|<complete>/g, '').trim()
-
-      // Append to full response
-      fullResponse += (fullResponse ? '\n' : '') + cleanResponse
-
-      messages.push({
-        role: "user" as const,
-        content: cleanResponse
-      })
-
-      if (!response.includes('<complete>') && attempt < MAX_ATTEMPTS) {
-        messages.push({
-          role: "user" as const,
-          content: "Please continue formatting the transcript from where you left off, maintaining the same markdown formatting. End with <continued> if not finished, or <complete> if done."
-        })
-      }
-
-      isComplete = response.includes('<complete>') || attempt === MAX_ATTEMPTS
-      attempt++
+      // If it's not the last attempt, wait before retrying
+      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY * attempt))
+      continue
     }
-
-    // Parse the complete response - looking specifically for markdown sections
-    const summaryMatch = fullResponse.match(/## Executive Summary\s*([\s\S]*?)(?=## Formatted Transcript|$)/i)
-    const transcriptMatch = fullResponse.match(/## Formatted Transcript\s*([\s\S]*?)$/i)
-
-    if (!summaryMatch || !transcriptMatch) {
-      throw new Error('Invalid response format from AI')
-    }
-
-    return {
-      summary: summaryMatch[1].trim(),
-      structuredTranscript: transcriptMatch[1].trim(),
-    }
-  } catch (error) {
-    const err = error as Error
-    console.error('Error processing transcript with Anthropic:', err)
-    throw new Error(`Failed to process transcript with Anthropic: ${err.message}`)
   }
+
+  // This should never be reached due to the fallback in the catch block
+  return chunk
+}
+
+async function processTranscript(rawTranscript: string) {
+  try {
+    console.log(`\n====== Starting Transcript Processing ======`)
+    console.log(`Input transcript length: ${rawTranscript.length} characters`)
+    console.log(`Input transcript words: ${countWords(rawTranscript)}`)
+
+    const anthropic = new Anthropic({
+      apiKey: process.env.ANTHROPIC_API_KEY,
+    })
+
+    // Step 1: Get executive summary
+    console.log(`\n=== Generating Summary ===`)
+    const summaryMessage = await anthropic.messages.create({
+      model: "claude-3-5-sonnet-20241022",
+      max_tokens: 1024,
+      temperature: 0.1,
+      messages: [{
+        role: "user",
+        content: `Provide a concise executive summary of this transcript in 3-5 key bullet points:
+
+${rawTranscript}
+
+Format as markdown bullet points. Only include the summary points.`
+      }]
+    })
+
+    const summary = summaryMessage.content[0].text
+
+    // Step 2: Split transcript into chunks
+    console.log(`\n=== Chunking Transcript ===`)
+    const chunks = chunkTranscript(rawTranscript)
+
+    // Step 3: Process chunks sequentially with better error handling
+    console.log(`\n=== Processing Chunks ===`)
+    const formattedChunks: string[] = []
+
+    for (let i = 0; i < chunks.length; i++) {
+      try {
+        console.log(`\nProcessing chunk ${i + 1}/${chunks.length}`)
+        const formattedChunk = await formatChunk(chunks[i], i, chunks.length, anthropic)
+        formattedChunks.push(formattedChunk)
+      } catch (error) {
+        console.error(`Failed to process chunk ${i + 1}:`, error)
+        // Add the original chunk with minimal formatting if processing fails
+        formattedChunks.push(`## Content\n\n${chunks[i].trim()}`)
+      }
+    }
+
+    // Step 4: Combine chunks
+    console.log(`\n=== Combining Chunks ===`)
+    const structuredTranscript = formattedChunks
+      .map((chunk, index) => {
+        // Clean up any visible hash symbols at the start of the text
+        chunk = chunk.replace(/^#\s+/, '')
+
+        // Remove empty sections (heading followed by no content)
+        chunk = chunk.replace(/#{1,3}\s+([^\n]+)\n\s*(?=#{1,3}|$)/g, '')
+
+        if (index === 0) return chunk
+
+        const prevChunk = formattedChunks[index - 1]
+
+        // Look for overlap based on multiple patterns
+        const patterns = [
+          /^\s*\*\*[^:]+:\*\*/, // Speaker patterns
+          /^\s*\[\d{1,2}:\d{2}\]/, // Timestamp patterns
+          /^\s*#{1,3}\s+/, // Section headers (1-3 hash symbols)
+        ]
+
+        for (const pattern of patterns) {
+          const match = chunk.match(pattern)
+          if (match) {
+            // Find the last occurrence of this pattern in previous chunk
+            const lastIndex = prevChunk.lastIndexOf(match[0])
+            if (lastIndex !== -1) {
+              // Remove overlapping content
+              return chunk.slice(match[0].length).trim()
+            }
+          }
+        }
+
+        return chunk
+      })
+      .filter(chunk => chunk.length > 0 && !/^\s*$/.test(chunk)) // Remove empty chunks
+      .join('\n\n')
+
+    console.log(`\n=== Processing Complete ===`)
+    console.log(`Final output length: ${structuredTranscript.length} characters`)
+    console.log(`Final output words: ${countWords(structuredTranscript)}`)
+    console.log(`=====================================\n`)
+
+    return { summary, structuredTranscript }
+  } catch (error) {
+    console.error('Error processing transcript:', error)
+    // Provide more specific error message to the client
+    const errorMessage = error instanceof Error
+      ? `Failed to process transcript: ${error.message}`
+      : 'An unknown error occurred while processing the transcript'
+    throw new Error(errorMessage)
+  }
+}
+
+// Helper function to find longest common substring
+function findLongestCommonSubstring(str1: string, str2: string): string {
+  const m = str1.length
+  const n = str2.length
+  const dp: number[][] = Array(m + 1).fill(0).map(() => Array(n + 1).fill(0))
+  let maxLength = 0
+  let endIndex = 0
+
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      if (str1[i - 1] === str2[j - 1]) {
+        dp[i][j] = dp[i - 1][j - 1] + 1
+        if (dp[i][j] > maxLength) {
+          maxLength = dp[i][j]
+          endIndex = i - 1
+        }
+      }
+    }
+  }
+
+  return str1.slice(endIndex - maxLength + 1, endIndex + 1)
 }
 
