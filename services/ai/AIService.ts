@@ -18,7 +18,7 @@ export class AIService implements IAIService {
         this.defaultModel = defaultModel;
     }
 
-    private async processWithRateLimit<T>(
+    public async processWithRateLimit<T>(
         tasks: (() => Promise<T>)[],
         maxConcurrent: number = 2
     ): Promise<T[]> {

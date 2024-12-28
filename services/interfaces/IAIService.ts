@@ -7,4 +7,5 @@ export interface AIRequestOptions {
 export interface IAIService {
     formatTranscript(text: string, options?: AIRequestOptions): Promise<string>;
     generateSummary(text: string, options?: AIRequestOptions): Promise<string>;
+    processWithRateLimit(tasks: Array<() => Promise<string>>): Promise<string[]>;
 } 
