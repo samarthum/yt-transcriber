@@ -5,8 +5,17 @@ export interface TranscriptSegment {
 }
 
 export interface ProcessedTranscript {
+    videoInfo: VideoInfo;
     structuredTranscript: string;
     summary: string;
+}
+
+export interface VideoInfo {
+    videoId: string;
+    title: string;
+    channelName: string;
+    publishedAt: string;
+    thumbnailUrl: string;
 }
 
 export interface TranscriptOptions {

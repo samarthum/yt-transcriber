@@ -1,25 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { Card, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert } from "@/components/ui/alert"
-import ReactMarkdown from 'react-markdown'
-
-interface VideoInfo {
-  videoId: string
-  title: string
-  channelName: string
-  publishedAt: string
-  thumbnailUrl: string
-}
-
-interface ProcessedTranscript {
-  videoInfo: VideoInfo
-  structuredTranscript: string
-  summary: string
-}
+import { VideoSearch } from '@/components/VideoSearch'
+import { VideoInfoCard } from '@/components/VideoInfoCard'
+import { TranscriptContent } from '@/components/TranscriptContent'
+import { ProcessedTranscript } from '@/types/transcript'
 
 export default function Home() {
   const [url, setUrl] = useState('')
@@ -55,26 +41,17 @@ export default function Home() {
   }
 
   return (
-    <main className="container mx-auto p-4 max-w-4xl">
-      <h1 className="text-4xl font-bold mb-8 text-center">
+    <main className="max-w-3xl mx-auto px-6 py-12">
+      <h1 className="text-4xl font-sans font-semibold text-zinc-900 mb-12 text-center">
         YouTube Transcript Processor
       </h1>
 
-      <div className="flex gap-4 mb-8">
-        <Input
-          type="text"
-          placeholder="Enter YouTube URL"
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          className="flex-grow"
-        />
-        <Button
-          onClick={processTranscript}
-          disabled={loading || !url}
-        >
-          {loading ? 'Processing...' : 'Process'}
-        </Button>
-      </div>
+      <VideoSearch
+        url={url}
+        loading={loading}
+        onUrlChange={setUrl}
+        onSubmit={processTranscript}
+      />
 
       {error && (
         <Alert variant="destructive" className="mb-8">
@@ -83,48 +60,12 @@ export default function Home() {
       )}
 
       {result && (
-        <div className="space-y-8">
-          {/* Video Info Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle>{result.videoInfo.title}</CardTitle>
-              <div className="flex gap-4 mt-4">
-                <img
-                  src={result.videoInfo.thumbnailUrl}
-                  alt={result.videoInfo.title}
-                  className="w-48 rounded-lg"
-                />
-                <div>
-                  <p className="text-sm text-gray-600">
-                    Channel: {result.videoInfo.channelName}
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    Published: {new Date(result.videoInfo.publishedAt).toLocaleDateString()}
-                  </p>
-                </div>
-              </div>
-            </CardHeader>
-          </Card>
-
-          {/* Summary Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Summary</CardTitle>
-              <div className="prose dark:prose-invert max-w-none mt-4">
-                <ReactMarkdown>{result.summary}</ReactMarkdown>
-              </div>
-            </CardHeader>
-          </Card>
-
-          {/* Transcript Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Structured Transcript</CardTitle>
-              <div className="prose dark:prose-invert max-w-none mt-4">
-                <ReactMarkdown>{result.structuredTranscript}</ReactMarkdown>
-              </div>
-            </CardHeader>
-          </Card>
+        <div className="space-y-16">
+          <VideoInfoCard videoInfo={result.videoInfo} />
+          <TranscriptContent
+            summary={result.summary}
+            transcript={result.structuredTranscript}
+          />
         </div>
       )}
     </main>
