@@ -9,11 +9,17 @@ interface TranscriptContentProps {
 export function TranscriptContent({ summary, transcript }: TranscriptContentProps) {
     return (
         <div className="space-y-16">
-            <section className="border-[1px] p-8 rounded-lg">
-                <h2 className="section-title">Key Takeaways</h2>
-                <div className="prose [&_h1]:font-sans [&_h2]:font-sans [&_h3]:font-sans [&_strong]:font-sans">
-                    <ReactMarkdown>{summary}</ReactMarkdown>
-                </div>
+            <section>
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Key Takeaways</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="prose [&_h1]:font-sans [&_h2]:font-sans [&_h3]:font-sans [&_strong]:font-sans">
+                            <ReactMarkdown>{summary}</ReactMarkdown>
+                        </div>
+                    </CardContent>
+                </Card>
             </section>
 
             <section>
