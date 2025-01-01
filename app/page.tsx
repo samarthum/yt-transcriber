@@ -71,8 +71,8 @@ export default function Home() {
   };
 
   return (
-    <main className="max-w-3xl mx-auto px-6 py-12">
-      <h1 className="text-4xl font-sans font-semibold text-zinc-900 mb-12 text-center">
+    <main className="max-w-3xl mx-auto px-4 md:px-6 py-6 md:py-12">
+      <h1 className="text-4xl font-sans font-semibold text-zinc-900 mb-6 md:mb-12 text-center">
         YouTube Transcript Processor
       </h1>
 

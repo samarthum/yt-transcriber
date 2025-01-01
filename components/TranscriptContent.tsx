@@ -12,7 +12,7 @@ export function TranscriptContent({ summary, transcript }: TranscriptContentProp
             <section>
                 <Card>
                     <CardHeader>
-                        <CardTitle>Key Takeaways</CardTitle>
+                        <CardTitle className="section-title">Key Takeaways</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <div className="prose [&_h1]:font-sans [&_h2]:font-sans [&_h3]:font-sans [&_strong]:font-sans">

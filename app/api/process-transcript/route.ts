@@ -1,4 +1,3 @@
-import { NextResponse } from 'next/server';
 import { getConfig } from '@/lib/config';
 import { ServiceFactory } from '@/services/ServiceFactory';
 
