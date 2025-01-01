@@ -10,7 +10,8 @@ const PROMPT_TOKEN_ESTIMATE = 300; // Approximate tokens in our prompt
 
 export async function POST(req: Request) {
   const encoder = new TextEncoder();
-  const readableStream = new ReadableStream({
+
+  const stream = new ReadableStream({
     async start(controller) {
       try {
         // Initialize services
@@ -20,29 +21,31 @@ export async function POST(req: Request) {
         const transcriptService = factory.getTranscriptService();
         const aiService = factory.getAIService();
 
+        // Send initial progress
+        controller.enqueue(
+          encoder.encode(
+            `data: ${JSON.stringify({ progress: 0, step: 'Starting process...' })}\n\n`
+          )
+        );
+
         // Parse request
         const { videoUrl } = await req.json();
         if (!videoUrl) {
-          controller.enqueue(
-            encoder.encode(
-              `data: ${JSON.stringify({ error: 'YouTube URL is required' })}\n\n`
-            )
-          );
-          controller.close();
-          return;
+          throw new Error('YouTube URL is required');
         }
 
         // Process video URL
         const videoId = await videoService.extractVideoId(videoUrl);
         if (!videoId) {
-          controller.enqueue(
-            encoder.encode(
-              `data: ${JSON.stringify({ error: 'Invalid YouTube URL' })}\n\n`
-            )
-          );
-          controller.close();
-          return;
+          throw new Error('Invalid YouTube URL');
         }
+
+        // Update progress
+        controller.enqueue(
+          encoder.encode(
+            `data: ${JSON.stringify({ progress: 20, step: 'Fetching video info and transcript...' })}\n\n`
+          )
+        );
 
         // Fetch video info and transcript in parallel
         const [videoInfo, rawTranscript] = await Promise.all([
@@ -51,136 +54,68 @@ export async function POST(req: Request) {
         ]);
 
         if (!rawTranscript) {
-          controller.enqueue(
-            encoder.encode(
-              `data: ${JSON.stringify({
-                error:
-                  'No captions available for this video. The video might not have captions, or they might be disabled.'
-              })}\n\n`
-            )
-          );
-          controller.close();
-          return;
+          throw new Error('No captions available for this video');
         }
 
-        // Send progress update: Transcript fetched
+        // Update progress
         controller.enqueue(
           encoder.encode(
-            `data: ${JSON.stringify({ progress: 0, step: 'Transcript fetched' })}\n\n`
+            `data: ${JSON.stringify({ progress: 40, step: 'Processing transcript format...' })}\n\n`
           )
         );
 
-        // Process transcript
-        const chunks = chunkText(rawTranscript, {
-          targetSize: 1000,
-          maxTokens: MAX_INPUT_TOKENS - PROMPT_TOKEN_ESTIMATE
-        });
+        // Format transcript
+        const structuredTranscript = await aiService.formatTranscript(rawTranscript);
 
-        // Process transcript with rate limiting
-        const processChunks = async () => {
-          const totalChunks = chunks.length;
-          const formattedChunks: string[] = [];
-
-          for (let i = 0; i < totalChunks; i++) {
-            const chunk = chunks[i];
-            const inputTokens = estimateTokens(chunk);
-            const formattedChunk = await aiService.formatTranscript(chunk, {
-              temperature: 0.5,
-              maxTokens: MAX_OUTPUT_TOKENS
-            });
-            formattedChunks.push(formattedChunk);
-
-            // Calculate and send progress update
-            const progress = Math.round(((i + 1) / totalChunks) * 50); // 50% for formatting
-            controller.enqueue(
-              encoder.encode(
-                `data: ${JSON.stringify({
-                  progress,
-                  step: 'Formatting transcript'
-                })}\n\n`
-              )
-            );
-          }
-
-          return formattedChunks.join('\n\n');
-        };
-
-        // Generate summary and format transcript sequentially instead of in parallel
-        const structuredTranscript = await processChunks();
-
-        // Send progress update: Transcript formatted
+        // Update progress
         controller.enqueue(
           encoder.encode(
-            `data: ${JSON.stringify({ progress: 50, step: 'Transcript formatted' })}\n\n`
+            `data: ${JSON.stringify({ progress: 70, step: 'Generating summary...' })}\n\n`
           )
         );
 
-        const summary = await aiService.generateSummary(rawTranscript, {
-          temperature: 0.3,
-          maxTokens: 1500
-        });
-
-        // Send progress update: Summary generated
-        controller.enqueue(
-          encoder.encode(
-            `data: ${JSON.stringify({ progress: 100, step: 'Summary generated' })}\n\n`
-          )
-        );
+        // Generate summary
+        const summary = await aiService.generateSummary(rawTranscript);
 
         // Send final result
         controller.enqueue(
           encoder.encode(
             `data: ${JSON.stringify({
+              progress: 100,
+              step: 'Complete',
+              done: true,
               videoInfo,
               structuredTranscript,
-              summary,
-              done: true
+              summary
             })}\n\n`
           )
         );
-      } catch (error) {
-        console.error('Error processing transcript:', error);
 
-        // Handle specific error types
-        if (error instanceof VideoError) {
-          controller.enqueue(
-            encoder.encode(
-              `data: ${JSON.stringify({ error: error.message })}\n\n`
-            )
-          );
-        } else if (error instanceof TranscriptError) {
-          controller.enqueue(
-            encoder.encode(
-              `data: ${JSON.stringify({ error: error.message })}\n\n`
-            )
-          );
-        } else if (error instanceof AIServiceError) {
-          controller.enqueue(
-            encoder.encode(
-              `data: ${JSON.stringify({ error: error.message })}\n\n`
-            )
-          );
-        } else {
-          // Generic error handling
-          const errorMessage =
-            error instanceof Error ? error.message : 'An unknown error occurred';
-          controller.enqueue(
-            encoder.encode(
-              `data: ${JSON.stringify({ error: errorMessage })}\n\n`
-            )
-          );
-        }
-      } finally {
+        controller.close();
+      } catch (error) {
+        console.error('Processing error:', error);
+
+        // Send error to client
+        controller.enqueue(
+          encoder.encode(
+            `data: ${JSON.stringify({
+              error: error instanceof Error ? error.message : 'An unknown error occurred',
+              progress: 0,
+              step: 'Error'
+            })}\n\n`
+          )
+        );
+
         controller.close();
       }
     }
   });
 
-  return new NextResponse(readableStream, {
+  return new Response(stream, {
     headers: {
       'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache, no-transform',
-      Connection: 'keep-alive'
-    }
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+    },
   });
 }
