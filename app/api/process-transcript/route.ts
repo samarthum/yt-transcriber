@@ -1,12 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getConfig } from '@/lib/config';
 import { ServiceFactory } from '@/services/ServiceFactory';
-import { VideoError, TranscriptError, AIServiceError } from '@/types/errors';
-import { chunkText, estimateTokens } from '@/lib/textUtils';
 
-const MAX_INPUT_TOKENS = 200000;   // Claude's input context window
-const MAX_OUTPUT_TOKENS = 8192;    // Claude's output token limit
-const PROMPT_TOKEN_ESTIMATE = 300; // Approximate tokens in our prompt
+// Mark this route as using Edge Runtime
+export const runtime = 'edge';
 
 export async function POST(req: Request) {
   const encoder = new TextEncoder();
@@ -28,17 +25,9 @@ export async function POST(req: Request) {
           )
         );
 
-        // Parse request
+        // Parse request and get video info
         const { videoUrl } = await req.json();
-        if (!videoUrl) {
-          throw new Error('YouTube URL is required');
-        }
-
-        // Process video URL
         const videoId = await videoService.extractVideoId(videoUrl);
-        if (!videoId) {
-          throw new Error('Invalid YouTube URL');
-        }
 
         // Update progress
         controller.enqueue(
@@ -53,29 +42,43 @@ export async function POST(req: Request) {
           transcriptService.getRawTranscript(videoId)
         ]);
 
-        if (!rawTranscript) {
-          throw new Error('No captions available for this video');
-        }
-
-        // Update progress
+        // Update progress for transcript formatting
         controller.enqueue(
           encoder.encode(
             `data: ${JSON.stringify({ progress: 40, step: 'Processing transcript format...' })}\n\n`
           )
         );
 
-        // Format transcript
-        const structuredTranscript = await aiService.formatTranscript(rawTranscript);
+        // Format transcript with streaming updates
+        const structuredTranscript = await aiService.formatTranscript(
+          rawTranscript,
+          (progress) => {
+            controller.enqueue(
+              encoder.encode(
+                `data: ${JSON.stringify({ progress: 40 + progress * 0.3, step: 'Formatting transcript...' })}\n\n`
+              )
+            );
+          }
+        );
 
-        // Update progress
+        // Update progress for summary generation
         controller.enqueue(
           encoder.encode(
             `data: ${JSON.stringify({ progress: 70, step: 'Generating summary...' })}\n\n`
           )
         );
 
-        // Generate summary
-        const summary = await aiService.generateSummary(rawTranscript);
+        // Generate summary with streaming updates
+        const summary = await aiService.generateSummary(
+          rawTranscript,
+          (progress) => {
+            controller.enqueue(
+              encoder.encode(
+                `data: ${JSON.stringify({ progress: 70 + progress * 0.3, step: 'Generating summary...' })}\n\n`
+              )
+            );
+          }
+        );
 
         // Send final result
         controller.enqueue(
@@ -94,8 +97,6 @@ export async function POST(req: Request) {
         controller.close();
       } catch (error) {
         console.error('Processing error:', error);
-
-        // Send error to client
         controller.enqueue(
           encoder.encode(
             `data: ${JSON.stringify({
@@ -105,7 +106,6 @@ export async function POST(req: Request) {
             })}\n\n`
           )
         );
-
         controller.close();
       }
     }

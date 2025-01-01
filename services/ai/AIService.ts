@@ -44,18 +44,32 @@ export class AIService implements IAIService {
 
     public async formatTranscript(
         text: string,
-        options?: AIRequestOptions
+        onProgress?: (progress: number) => void
     ): Promise<string> {
         try {
-            await new Promise(resolve => setTimeout(resolve, 1000));
-
             const prompt = TRANSCRIPT_FORMAT_PROMPT.replace('{text}', text);
-            const response = await this.createCompletion(prompt, options);
-            return response.trim();
+
+            const response = await this.client.messages.create({
+                model: this.defaultModel,
+                messages: [{ role: 'user', content: prompt }],
+                stream: true
+            });
+
+            let result = '';
+            for await (const chunk of response) {
+                result += chunk.content;
+                // Estimate progress based on response length
+                if (onProgress) {
+                    const progress = Math.min((result.length / text.length) * 100, 100);
+                    onProgress(progress);
+                }
+            }
+
+            return result.trim();
         } catch (error) {
             if (error instanceof Error && error.message.includes('rate_limit')) {
                 await new Promise(resolve => setTimeout(resolve, 2000));
-                return this.formatTranscript(text, options);
+                return this.formatTranscript(text, onProgress);
             }
             throw new AIServiceError(
                 `Failed to format transcript: ${(error as Error).message}`
