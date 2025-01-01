@@ -51,6 +51,7 @@ export class AIService implements IAIService {
 
             const response = await this.client.messages.create({
                 model: this.defaultModel,
+                max_tokens: 4000,
                 messages: [{ role: 'user', content: prompt }],
                 stream: true
             });
@@ -86,6 +87,7 @@ export class AIService implements IAIService {
 
             const response = await this.client.messages.create({
                 model: this.defaultModel,
+                max_tokens: 4000,
                 messages: [{ role: 'user', content: prompt }],
                 stream: true
             });
