@@ -58,11 +58,13 @@ export class AIService implements IAIService {
 
             let result = '';
             for await (const chunk of response) {
-                result += chunk.content;
-                // Estimate progress based on response length
-                if (onProgress) {
-                    const progress = Math.min((result.length / text.length) * 100, 100);
-                    onProgress(progress);
+                if (chunk.type === 'content_block_delta') {
+                    result += chunk.delta.text;
+                    // Estimate progress based on response length
+                    if (onProgress) {
+                        const progress = Math.min((result.length / text.length) * 100, 100);
+                        onProgress(progress);
+                    }
                 }
             }
 
@@ -94,11 +96,13 @@ export class AIService implements IAIService {
 
             let result = '';
             for await (const chunk of response) {
-                result += chunk.content;
-                // Estimate progress based on response length
-                if (onProgress) {
-                    const progress = Math.min((result.length / text.length) * 100, 100);
-                    onProgress(progress);
+                if (chunk.type === 'content_block_delta') {
+                    result += chunk.delta.text;
+                    // Estimate progress based on response length
+                    if (onProgress) {
+                        const progress = Math.min((result.length / text.length) * 100, 100);
+                        onProgress(progress);
+                    }
                 }
             }
 
