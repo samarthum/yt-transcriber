@@ -79,35 +79,36 @@ export class AIService implements IAIService {
 
     public async generateSummary(
         text: string,
-        options?: AIRequestOptions
+        onProgress?: (progress: number) => void
     ): Promise<string> {
         try {
             const prompt = SUMMARY_PROMPT.replace('{text}', text);
-            const response = await this.createCompletion(prompt, options);
-            return response.trim();
+
+            const response = await this.client.messages.create({
+                model: this.defaultModel,
+                messages: [{ role: 'user', content: prompt }],
+                stream: true
+            });
+
+            let result = '';
+            for await (const chunk of response) {
+                result += chunk.content;
+                // Estimate progress based on response length
+                if (onProgress) {
+                    const progress = Math.min((result.length / text.length) * 100, 100);
+                    onProgress(progress);
+                }
+            }
+
+            return result.trim();
         } catch (error) {
+            if (error instanceof Error && error.message.includes('rate_limit')) {
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                return this.generateSummary(text, onProgress);
+            }
             throw new AIServiceError(
                 `Failed to generate summary: ${(error as Error).message}`
             );
         }
-    }
-
-    private async createCompletion(
-        prompt: string,
-        options?: AIRequestOptions
-    ): Promise<string> {
-        const response = await this.client.messages.create({
-            model: options?.model || this.defaultModel,
-            max_tokens: options?.maxTokens || 4000,
-            temperature: options?.temperature || 0.5,
-            messages: [
-                {
-                    role: 'user',
-                    content: prompt
-                }
-            ]
-        });
-
-        return response.content[0].text;
     }
 } 
