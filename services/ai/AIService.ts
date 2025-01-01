@@ -5,7 +5,7 @@ import {
     TRANSCRIPT_FORMAT_PROMPT,
     SUMMARY_PROMPT
 } from './prompts/transcriptPrompts';
-import { chunkText } from '@/utils/textUtils';
+import { chunkText } from '@/lib/textUtils';
 
 export class AIService implements IAIService {
     private readonly client: Anthropic;
