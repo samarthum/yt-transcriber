@@ -10,6 +10,8 @@ import { chunkText } from '@/lib/textUtils';
 export class AIService implements IAIService {
     private readonly client: Anthropic;
     private readonly defaultModel: string;
+    private readonly MAX_CHUNK_SIZE = 1000; // ~1000 tokens (roughly 4 chars per token)
+    private readonly MAX_OUTPUT_TOKENS = 4000;
 
     constructor(apiKey: string, defaultModel: string) {
         if (!apiKey) {
@@ -43,51 +45,65 @@ export class AIService implements IAIService {
         return results;
     }
 
+    private async processChunkWithRetry(
+        prompt: string,
+        maxRetries: number = 3,
+        retryDelay: number = 1000
+    ): Promise<string> {
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                const response = await this.client.messages.create({
+                    model: this.defaultModel,
+                    max_tokens: this.MAX_OUTPUT_TOKENS,
+                    messages: [{ role: 'user', content: prompt }],
+                    stream: true
+                });
+
+                let result = '';
+                for await (const event of response) {
+                    if (event.type === 'content_block_delta') {
+                        result += event.delta.text;
+                    }
+                }
+                return result.trim();
+            } catch (error) {
+                console.error(`Attempt ${attempt} failed:`, error);
+                if (attempt === maxRetries) throw error;
+                await new Promise(resolve => setTimeout(resolve, retryDelay * attempt));
+            }
+        }
+        throw new AIServiceError('Failed after max retries');
+    }
+
     public async formatTranscript(
         text: string,
         onProgress?: (progress: number) => void
     ): Promise<string> {
         try {
-            // Split text into manageable chunks
-            const chunks = chunkText(text);
+            const chunks = chunkText(text, this.MAX_CHUNK_SIZE);
             let formattedChunks: string[] = [];
             let totalProgress = 0;
 
-            // Process each chunk
             for (let i = 0; i < chunks.length; i++) {
                 const chunk = chunks[i];
                 const prompt = TRANSCRIPT_FORMAT_PROMPT.replace('{text}', chunk);
 
-                const response = await this.client.messages.create({
-                    model: this.defaultModel,
-                    max_tokens: 4000,
-                    messages: [{ role: 'user', content: prompt }],
-                    stream: true
-                });
+                try {
+                    const chunkResult = await this.processChunkWithRetry(prompt);
+                    formattedChunks.push(chunkResult);
 
-                let chunkResult = '';
-                for await (const event of response) {
-                    if (event.type === 'content_block_delta') {
-                        chunkResult += event.delta.text;
-                        if (onProgress) {
-                            // Calculate progress considering all chunks
-                            const chunkProgress = (chunkResult.length / chunk.length) * (100 / chunks.length);
-                            const overallProgress = totalProgress + chunkProgress;
-                            onProgress(Math.min(overallProgress, 100));
-                        }
+                    totalProgress = ((i + 1) / chunks.length) * 100;
+                    if (onProgress) {
+                        onProgress(Math.min(totalProgress, 100));
                     }
+                } catch (error) {
+                    console.error(`Failed to process chunk ${i + 1}/${chunks.length}:`, error);
+                    throw error;
                 }
-                formattedChunks.push(chunkResult.trim());
-                totalProgress += 100 / chunks.length;
             }
 
-            // Combine chunks with proper formatting
             return formattedChunks.join('\n\n');
         } catch (error) {
-            if (error instanceof Error && error.message.includes('rate_limit')) {
-                await new Promise(resolve => setTimeout(resolve, 2000));
-                return this.formatTranscript(text, onProgress);
-            }
             throw new AIServiceError(
                 `Failed to format transcript: ${(error as Error).message}`
             );
@@ -99,8 +115,7 @@ export class AIService implements IAIService {
         onProgress?: (progress: number) => void
     ): Promise<string> {
         try {
-            // For summary, we'll first chunk and summarize each part
-            const chunks = chunkText(text);
+            const chunks = chunkText(text, this.MAX_CHUNK_SIZE);
             let summaries: string[] = [];
             let totalProgress = 0;
 
@@ -109,26 +124,18 @@ export class AIService implements IAIService {
                 const chunk = chunks[i];
                 const prompt = SUMMARY_PROMPT.replace('{text}', chunk);
 
-                const response = await this.client.messages.create({
-                    model: this.defaultModel,
-                    max_tokens: 4000,
-                    messages: [{ role: 'user', content: prompt }],
-                    stream: true
-                });
+                try {
+                    const chunkResult = await this.processChunkWithRetry(prompt);
+                    summaries.push(chunkResult);
 
-                let chunkResult = '';
-                for await (const event of response) {
-                    if (event.type === 'content_block_delta') {
-                        chunkResult += event.delta.text;
-                        if (onProgress) {
-                            const chunkProgress = (chunkResult.length / chunk.length) * (50 / chunks.length);
-                            const overallProgress = totalProgress + chunkProgress;
-                            onProgress(Math.min(overallProgress, 50)); // First 50% for individual summaries
-                        }
+                    totalProgress = ((i + 1) / chunks.length) * 50;
+                    if (onProgress) {
+                        onProgress(Math.min(totalProgress, 50));
                     }
+                } catch (error) {
+                    console.error(`Failed to summarize chunk ${i + 1}/${chunks.length}:`, error);
+                    throw error;
                 }
-                summaries.push(chunkResult.trim());
-                totalProgress += 50 / chunks.length;
             }
 
             // Second pass: combine summaries if needed
@@ -136,32 +143,19 @@ export class AIService implements IAIService {
                 const combinedSummary = summaries.join('\n\n');
                 const finalPrompt = SUMMARY_PROMPT.replace('{text}', combinedSummary);
 
-                const response = await this.client.messages.create({
-                    model: this.defaultModel,
-                    max_tokens: 4000,
-                    messages: [{ role: 'user', content: finalPrompt }],
-                    stream: true
-                });
-
-                let finalResult = '';
-                for await (const event of response) {
-                    if (event.type === 'content_block_delta') {
-                        finalResult += event.delta.text;
-                        if (onProgress) {
-                            const progress = 50 + (finalResult.length / combinedSummary.length) * 50;
-                            onProgress(Math.min(progress, 100)); // Last 50% for final summary
-                        }
-                    }
+                try {
+                    const finalResult = await this.processChunkWithRetry(finalPrompt);
+                    if (onProgress) onProgress(100);
+                    return finalResult;
+                } catch (error) {
+                    console.error('Failed to combine summaries:', error);
+                    throw error;
                 }
-                return finalResult.trim();
             }
 
+            if (onProgress) onProgress(100);
             return summaries[0];
         } catch (error) {
-            if (error instanceof Error && error.message.includes('rate_limit')) {
-                await new Promise(resolve => setTimeout(resolve, 2000));
-                return this.generateSummary(text, onProgress);
-            }
             throw new AIServiceError(
                 `Failed to generate summary: ${(error as Error).message}`
             );
