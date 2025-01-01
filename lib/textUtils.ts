@@ -13,57 +13,31 @@ export function estimateTokens(text: string): number {
     return Math.ceil(text.length / 4);
 }
 
-export function chunkText(text: string, options: ChunkOptions = {}): string[] {
-    const {
-        targetSize = 1000,
-        overlap = 100,
-        maxLookAhead = 50,
-        maxTokens = 4000
-    } = options;
-
-    const words = text.split(/(\s+)/).filter(Boolean);
+export function chunkText(text: string, maxChunkSize: number = 8000, overlap: number = 200): string[] {
     const chunks: string[] = [];
-    let currentChunk: string[] = [];
-    let wordCount = 0;
+    let startIndex = 0;
 
-    for (let i = 0; i < words.length; i++) {
-        const word = words[i];
-        const potentialChunk = [...currentChunk, word].join('');
+    while (startIndex < text.length) {
+        let endIndex = startIndex + maxChunkSize;
 
-        if (!word.match(/^\s+/)) {
-            wordCount++;
-        }
+        // If this isn't the last chunk, try to break at a sentence
+        if (endIndex < text.length) {
+            // Look for sentence endings within the overlap region
+            const searchRegion = text.slice(endIndex - overlap, endIndex + overlap);
+            const sentences = searchRegion.match(/[.!?]+\s+/g);
 
-        if (wordCount >= targetSize || estimateTokens(potentialChunk) >= maxTokens) {
-            // Look for a good breaking point
-            let lookAhead = 0;
-            while (i + lookAhead < words.length && lookAhead < maxLookAhead) {
-                if (words[i + lookAhead].match(/[.!?]\s*$/)) {
-                    i += lookAhead;
-                    break;
-                }
-                lookAhead++;
+            if (sentences) {
+                // Find the last sentence ending in our search region
+                const lastSentence = sentences[sentences.length - 1];
+                const sentenceEnd = searchRegion.lastIndexOf(lastSentence) + lastSentence.length;
+                endIndex = (endIndex - overlap) + sentenceEnd;
             }
-
-            // Add remaining words up to break point
-            while (lookAhead > 0) {
-                currentChunk.push(words[++i]);
-                lookAhead--;
-            }
-
-            chunks.push(currentChunk.join(''));
-
-            // Start new chunk with overlap
-            const overlapStart = Math.max(0, currentChunk.length - overlap);
-            currentChunk = currentChunk.slice(overlapStart);
-            wordCount = countWords(currentChunk.join(''));
         } else {
-            currentChunk.push(word);
+            endIndex = text.length;
         }
-    }
 
-    if (currentChunk.length > 0) {
-        chunks.push(currentChunk.join(''));
+        chunks.push(text.slice(startIndex, endIndex));
+        startIndex = endIndex;
     }
 
     return chunks;
