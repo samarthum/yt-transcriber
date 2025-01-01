@@ -12,11 +12,15 @@ export default function Home() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<ProcessedTranscript | null>(null)
+  const [progress, setProgress] = useState(0);
+  const [currentStep, setCurrentStep] = useState('');
 
   const processTranscript = async () => {
     try {
-      setLoading(true)
-      setError(null)
+      setLoading(true);
+      setError(null);
+      setProgress(0);
+      setCurrentStep('');
 
       const response = await fetch('/api/process-transcript', {
         method: 'POST',
@@ -24,21 +28,47 @@ export default function Home() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ videoUrl: url }),
-      })
+      });
 
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to process transcript')
+      if (!response.ok || !response.body) {
+        throw new Error('Failed to process transcript');
       }
 
-      setResult(data)
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let done = false;
+
+      while (!done) {
+        const { value, done: readerDone } = await reader.read();
+        done = readerDone;
+        const chunk = decoder.decode(value);
+
+        // Process the streamed data
+        const dataArray = chunk.split('\n\n').filter(str => str.startsWith('data:'));
+        for (const dataStr of dataArray) {
+          try {
+            const data = JSON.parse(dataStr.substring(5)); // Remove 'data:' prefix and parse
+            if (data.progress !== undefined) {
+              setProgress(data.progress);
+            }
+            if (data.step) {
+              setCurrentStep(data.step);
+            }
+            if (data.done) {
+              setResult(data);
+              setLoading(false);
+            }
+          } catch (error) {
+            console.error('Error parsing JSON:', error);
+          }
+        }
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An unknown error occurred')
-    } finally {
-      setLoading(false)
+      console.error('Error:', err);
+      setError(err instanceof Error ? err.message : 'An unknown error occurred');
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <main className="max-w-3xl mx-auto px-6 py-12">
@@ -57,6 +87,23 @@ export default function Home() {
         <Alert variant="destructive" className="mb-8">
           {error}
         </Alert>
+      )}
+
+      {loading && (
+        <div className="mb-8">
+          <h3 className="text-lg font-medium mb-2">Processing...</h3>
+          <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+            <div
+              className="bg-blue-600 h-2.5 rounded-full"
+              style={{ width: `${progress}%` }}
+            ></div>
+          </div>
+          {currentStep && (
+            <p className="mt-2 text-sm text-gray-500">
+              {currentStep}
+            </p>
+          )}
+        </div>
       )}
 
       {result && (

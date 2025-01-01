@@ -9,96 +9,178 @@ const MAX_OUTPUT_TOKENS = 8192;    // Claude's output token limit
 const PROMPT_TOKEN_ESTIMATE = 300; // Approximate tokens in our prompt
 
 export async function POST(req: Request) {
-  try {
-    // Initialize services
-    const config = getConfig();
-    const factory = ServiceFactory.initialize(config);
-    const videoService = factory.getVideoService();
-    const transcriptService = factory.getTranscriptService();
-    const aiService = factory.getAIService();
+  const encoder = new TextEncoder();
+  const readableStream = new ReadableStream({
+    async start(controller) {
+      try {
+        // Initialize services
+        const config = getConfig();
+        const factory = ServiceFactory.initialize(config);
+        const videoService = factory.getVideoService();
+        const transcriptService = factory.getTranscriptService();
+        const aiService = factory.getAIService();
 
-    // Parse request
-    const { videoUrl } = await req.json();
-    if (!videoUrl) {
-      return NextResponse.json(
-        { error: 'YouTube URL is required' },
-        { status: 400 }
-      );
-    }
+        // Parse request
+        const { videoUrl } = await req.json();
+        if (!videoUrl) {
+          controller.enqueue(
+            encoder.encode(
+              `data: ${JSON.stringify({ error: 'YouTube URL is required' })}\n\n`
+            )
+          );
+          controller.close();
+          return;
+        }
 
-    // Process video URL
-    const videoId = await videoService.extractVideoId(videoUrl);
-    if (!videoId) {
-      return NextResponse.json(
-        { error: 'Invalid YouTube URL' },
-        { status: 400 }
-      );
-    }
+        // Process video URL
+        const videoId = await videoService.extractVideoId(videoUrl);
+        if (!videoId) {
+          controller.enqueue(
+            encoder.encode(
+              `data: ${JSON.stringify({ error: 'Invalid YouTube URL' })}\n\n`
+            )
+          );
+          controller.close();
+          return;
+        }
 
-    // Fetch video info and transcript in parallel
-    const [videoInfo, rawTranscript] = await Promise.all([
-      videoService.getVideoInfo(videoId),
-      transcriptService.getRawTranscript(videoId)
-    ]);
+        // Fetch video info and transcript in parallel
+        const [videoInfo, rawTranscript] = await Promise.all([
+          videoService.getVideoInfo(videoId),
+          transcriptService.getRawTranscript(videoId)
+        ]);
 
-    if (!rawTranscript) {
-      return NextResponse.json(
-        {
-          error: 'No captions available for this video. The video might not have captions, or they might be disabled.'
-        },
-        { status: 404 }
-      );
-    }
+        if (!rawTranscript) {
+          controller.enqueue(
+            encoder.encode(
+              `data: ${JSON.stringify({
+                error:
+                  'No captions available for this video. The video might not have captions, or they might be disabled.'
+              })}\n\n`
+            )
+          );
+          controller.close();
+          return;
+        }
 
-    // Process transcript
-    const chunks = chunkText(rawTranscript, {
-      targetSize: 1000,
-      maxTokens: MAX_INPUT_TOKENS - PROMPT_TOKEN_ESTIMATE
-    });
+        // Send progress update: Transcript fetched
+        controller.enqueue(
+          encoder.encode(
+            `data: ${JSON.stringify({ progress: 0, step: 'Transcript fetched' })}\n\n`
+          )
+        );
 
-    // Process transcript with rate limiting
-    const processChunks = async () => {
-      const tasks = chunks.map(chunk => async () => {
-        const inputTokens = estimateTokens(chunk);
-        return aiService.formatTranscript(chunk, {
-          temperature: 0.5,
-          maxTokens: MAX_OUTPUT_TOKENS
+        // Process transcript
+        const chunks = chunkText(rawTranscript, {
+          targetSize: 1000,
+          maxTokens: MAX_INPUT_TOKENS - PROMPT_TOKEN_ESTIMATE
         });
-      });
 
-      const formattedChunks = await aiService.processWithRateLimit(tasks);
-      return formattedChunks.join('\n\n');
-    };
+        // Process transcript with rate limiting
+        const processChunks = async () => {
+          const totalChunks = chunks.length;
+          const formattedChunks: string[] = [];
 
-    // Generate summary and format transcript sequentially instead of in parallel
-    const structuredTranscript = await processChunks();
-    const summary = await aiService.generateSummary(rawTranscript, {
-      temperature: 0.3,
-      maxTokens: 1500
-    });
+          for (let i = 0; i < totalChunks; i++) {
+            const chunk = chunks[i];
+            const inputTokens = estimateTokens(chunk);
+            const formattedChunk = await aiService.formatTranscript(chunk, {
+              temperature: 0.5,
+              maxTokens: MAX_OUTPUT_TOKENS
+            });
+            formattedChunks.push(formattedChunk);
 
-    return NextResponse.json({
-      videoInfo,
-      structuredTranscript,
-      summary,
-    });
+            // Calculate and send progress update
+            const progress = Math.round(((i + 1) / totalChunks) * 50); // 50% for formatting
+            controller.enqueue(
+              encoder.encode(
+                `data: ${JSON.stringify({
+                  progress,
+                  step: 'Formatting transcript'
+                })}\n\n`
+              )
+            );
+          }
 
-  } catch (error) {
-    console.error('Error processing transcript:', error);
+          return formattedChunks.join('\n\n');
+        };
 
-    // Handle specific error types
-    if (error instanceof VideoError) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
+        // Generate summary and format transcript sequentially instead of in parallel
+        const structuredTranscript = await processChunks();
+
+        // Send progress update: Transcript formatted
+        controller.enqueue(
+          encoder.encode(
+            `data: ${JSON.stringify({ progress: 50, step: 'Transcript formatted' })}\n\n`
+          )
+        );
+
+        const summary = await aiService.generateSummary(rawTranscript, {
+          temperature: 0.3,
+          maxTokens: 1500
+        });
+
+        // Send progress update: Summary generated
+        controller.enqueue(
+          encoder.encode(
+            `data: ${JSON.stringify({ progress: 100, step: 'Summary generated' })}\n\n`
+          )
+        );
+
+        // Send final result
+        controller.enqueue(
+          encoder.encode(
+            `data: ${JSON.stringify({
+              videoInfo,
+              structuredTranscript,
+              summary,
+              done: true
+            })}\n\n`
+          )
+        );
+      } catch (error) {
+        console.error('Error processing transcript:', error);
+
+        // Handle specific error types
+        if (error instanceof VideoError) {
+          controller.enqueue(
+            encoder.encode(
+              `data: ${JSON.stringify({ error: error.message })}\n\n`
+            )
+          );
+        } else if (error instanceof TranscriptError) {
+          controller.enqueue(
+            encoder.encode(
+              `data: ${JSON.stringify({ error: error.message })}\n\n`
+            )
+          );
+        } else if (error instanceof AIServiceError) {
+          controller.enqueue(
+            encoder.encode(
+              `data: ${JSON.stringify({ error: error.message })}\n\n`
+            )
+          );
+        } else {
+          // Generic error handling
+          const errorMessage =
+            error instanceof Error ? error.message : 'An unknown error occurred';
+          controller.enqueue(
+            encoder.encode(
+              `data: ${JSON.stringify({ error: errorMessage })}\n\n`
+            )
+          );
+        }
+      } finally {
+        controller.close();
+      }
     }
-    if (error instanceof TranscriptError) {
-      return NextResponse.json({ error: error.message }, { status: 404 });
-    }
-    if (error instanceof AIServiceError) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
+  });
 
-    // Generic error handling
-    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-    return NextResponse.json({ error: errorMessage }, { status: 500 });
-  }
+  return new NextResponse(readableStream, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache, no-transform',
+      Connection: 'keep-alive'
+    }
+  });
 }

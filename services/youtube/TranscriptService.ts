@@ -1,11 +1,13 @@
 import { ITranscriptService } from '../interfaces/ITranscriptService';
-import { TranscriptSegment, TranscriptOptions } from '@/types/transcript';
+import { TranscriptSegment, TranscriptOptions, RapidAPIResponse } from '@/types/transcript';
 import { TranscriptError } from '@/types/errors';
 import { YoutubeTranscript } from 'youtube-transcript';
 
 export class TranscriptService implements ITranscriptService {
     private readonly MAX_RETRIES = 3;
     private readonly RETRY_DELAY = 1000;
+    private readonly isProduction = process.env.NODE_ENV === 'production';
+    private readonly rapidApiKey = process.env.RAPID_API_KEY;
 
     public async fetchTranscript(
         videoId: string,
@@ -40,8 +42,51 @@ export class TranscriptService implements ITranscriptService {
     }
 
     public async getRawTranscript(videoId: string): Promise<string> {
+        if (this.isProduction && this.rapidApiKey) {
+            return this.getRapidAPITranscript(videoId);
+        }
+
+        // Fallback to local method
         const transcript = await this.fetchTranscript(videoId);
         return transcript.map(segment => segment.text).join(' ');
+    }
+
+    private async getRapidAPITranscript(videoId: string): Promise<string> {
+        try {
+            const response = await fetch('https://video-transcript-scraper.p.rapidapi.com/', {
+                method: 'POST',
+                headers: {
+                    'x-rapidapi-key': this.rapidApiKey!,
+                    'x-rapidapi-host': 'video-transcript-scraper.p.rapidapi.com',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    video_url: `https://youtu.be/${videoId}`,
+                    language: 'en'
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`RapidAPI request failed: ${response.statusText}`);
+            }
+
+            const data: RapidAPIResponse = await response.json();
+
+            // Return the full text if available, otherwise join transcript segments
+            return data.text || data.transcript.map(segment => segment.text).join(' ');
+        } catch (error) {
+            console.error('RapidAPI transcript fetch failed:', error);
+
+            // If RapidAPI fails in production, try the local method as fallback
+            try {
+                const transcript = await this.fetchTranscript(videoId);
+                return transcript.map(segment => segment.text).join(' ');
+            } catch (fallbackError) {
+                throw new TranscriptError(
+                    `Failed to fetch transcript: ${(error as Error).message}`
+                );
+            }
+        }
     }
 
     private async fetchWithConfig(
