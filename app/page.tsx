@@ -36,30 +36,42 @@ export default function Home() {
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
-      let done = false;
+      let buffer = ''; // Add buffer for incomplete chunks
 
-      while (!done) {
-        const { value, done: readerDone } = await reader.read();
-        done = readerDone;
-        const chunk = decoder.decode(value);
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
 
-        // Process the streamed data
-        const dataArray = chunk.split('\n\n').filter(str => str.startsWith('data:'));
-        for (const dataStr of dataArray) {
-          try {
-            const data = JSON.parse(dataStr.substring(5)); // Remove 'data:' prefix and parse
-            if (data.progress !== undefined) {
-              setProgress(data.progress);
+        // Append new chunk to buffer
+        buffer += decoder.decode(value, { stream: true });
+
+        // Split buffer into complete messages
+        const lines = buffer.split('\n\n');
+        buffer = lines.pop() || ''; // Keep last incomplete chunk in buffer
+
+        // Process complete messages
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(5));
+              if (data.error) {
+                throw new Error(data.error);
+              }
+              if (data.progress !== undefined) {
+                setProgress(data.progress);
+              }
+              if (data.step) {
+                setCurrentStep(data.step);
+              }
+              if (data.done) {
+                setResult(data);
+                setLoading(false);
+              }
+            } catch (error) {
+              console.warn('Error parsing chunk:', error);
+              // Continue processing other chunks even if one fails
+              continue;
             }
-            if (data.step) {
-              setCurrentStep(data.step);
-            }
-            if (data.done) {
-              setResult(data);
-              setLoading(false);
-            }
-          } catch (error) {
-            console.error('Error parsing JSON:', error);
           }
         }
       }
