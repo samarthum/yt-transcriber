@@ -10,7 +10,7 @@ import { chunkText } from '@/lib/textUtils';
 export class AIService implements IAIService {
     private readonly client: Anthropic;
     private readonly defaultModel: string;
-    private readonly MAX_CHUNK_SIZE = 1000; // ~1000 tokens (roughly 4 chars per token)
+    private readonly MAX_CHUNK_SIZE = 8000; // ~8000 tokens for output context
     private readonly MAX_OUTPUT_TOKENS = 4000;
 
     constructor(apiKey: string, defaultModel: string) {
@@ -115,46 +115,16 @@ export class AIService implements IAIService {
         onProgress?: (progress: number) => void
     ): Promise<string> {
         try {
-            const chunks = chunkText(text, this.MAX_CHUNK_SIZE);
-            let summaries: string[] = [];
-            let totalProgress = 0;
+            const prompt = SUMMARY_PROMPT.replace('{text}', text);
 
-            // First pass: summarize each chunk
-            for (let i = 0; i < chunks.length; i++) {
-                const chunk = chunks[i];
-                const prompt = SUMMARY_PROMPT.replace('{text}', chunk);
-
-                try {
-                    const chunkResult = await this.processChunkWithRetry(prompt);
-                    summaries.push(chunkResult);
-
-                    totalProgress = ((i + 1) / chunks.length) * 50;
-                    if (onProgress) {
-                        onProgress(Math.min(totalProgress, 50));
-                    }
-                } catch (error) {
-                    console.error(`Failed to summarize chunk ${i + 1}/${chunks.length}:`, error);
-                    throw error;
-                }
+            try {
+                const result = await this.processChunkWithRetry(prompt);
+                if (onProgress) onProgress(100);
+                return result;
+            } catch (error) {
+                console.error('Failed to generate summary:', error);
+                throw error;
             }
-
-            // Second pass: combine summaries if needed
-            if (summaries.length > 1) {
-                const combinedSummary = summaries.join('\n\n');
-                const finalPrompt = SUMMARY_PROMPT.replace('{text}', combinedSummary);
-
-                try {
-                    const finalResult = await this.processChunkWithRetry(finalPrompt);
-                    if (onProgress) onProgress(100);
-                    return finalResult;
-                } catch (error) {
-                    console.error('Failed to combine summaries:', error);
-                    throw error;
-                }
-            }
-
-            if (onProgress) onProgress(100);
-            return summaries[0];
         } catch (error) {
             throw new AIServiceError(
                 `Failed to generate summary: ${(error as Error).message}`
