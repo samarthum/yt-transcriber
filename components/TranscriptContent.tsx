@@ -10,12 +10,12 @@ export function TranscriptContent({ summary, transcript }: TranscriptContentProp
     return (
         <div className="space-y-12 lg:space-y-16">
             <section id="key-takeaways">
-                <Card className="bg-white border-zinc-200/80">
+                <Card className="bg-card border-border">
                     <CardHeader className="pb-3">
-                        <CardTitle className="text-lg lg:text-xl font-medium">Key Takeaways</CardTitle>
+                        <CardTitle className="text-lg lg:text-xl font-medium text-foreground">Key Takeaways</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="prose prose-zinc prose-sm">
+                        <div className="prose prose-zinc prose-sm dark:prose-invert [&>*:first-child]:mt-0">
                             <ReactMarkdown>{summary}</ReactMarkdown>
                         </div>
                     </CardContent>

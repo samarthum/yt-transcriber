@@ -8,6 +8,7 @@ import { TranscriptContent } from '@/components/TranscriptContent'
 import { ProcessedTranscript } from '@/types/transcript'
 import { Sidebar } from '@/components/Sidebar'
 import { Menu as MenuIcon, X as XIcon } from 'lucide-react'
+import { ThemeToggle } from '@/components/theme-toggle'
 
 export default function Home() {
   const [url, setUrl] = useState('')
@@ -96,16 +97,17 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen bg-white">
+    <main className="min-h-screen bg-background">
       {result && (
         <div className="flex flex-col lg:flex-row">
           {/* Sidebar - Hidden on mobile by default */}
-          <div className="hidden lg:block w-72 h-screen fixed left-0 top-0 border-r border-zinc-200 bg-white">
+          <div className="hidden lg:block w-72 h-screen fixed left-0 top-0 border-r border-border bg-background">
             <div className="h-full p-5 flex flex-col">
-              <div className="mb-6">
-                <h1 className="text-sm font-medium text-zinc-900">
+              <div className="mb-6 flex items-center justify-between">
+                <h1 className="text-sm font-medium">
                   Contents
                 </h1>
+                <ThemeToggle />
               </div>
               <div className="flex-1 overflow-y-auto">
                 <Sidebar
@@ -118,15 +120,18 @@ export default function Home() {
           </div>
 
           {/* Mobile Navigation */}
-          <div className="lg:hidden fixed top-0 left-0 right-0 z-30 bg-white/80 backdrop-blur-sm border-b border-zinc-200/80">
+          <div className="lg:hidden fixed top-0 left-0 right-0 z-30 bg-background/80 backdrop-blur-sm border-b border-border">
             <div className="px-4 py-3 flex items-center justify-between">
-              <h1 className="text-sm font-medium text-zinc-900">Contents</h1>
-              <button
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="p-2 text-zinc-600 hover:text-zinc-900"
-              >
-                <MenuIcon className="h-5 w-5" />
-              </button>
+              <h1 className="text-sm font-medium">Contents</h1>
+              <div className="flex items-center gap-2">
+                <ThemeToggle />
+                <button
+                  onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                  className="p-2 text-muted-foreground hover:text-foreground"
+                >
+                  <MenuIcon className="h-5 w-5" />
+                </button>
+              </div>
             </div>
           </div>
 
@@ -134,18 +139,18 @@ export default function Home() {
           <>
             {/* Backdrop */}
             <div
-              className={`fixed inset-0 bg-zinc-800/20 backdrop-blur-sm z-40 lg:hidden transition-opacity duration-200 ${mobileMenuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
+              className={`fixed inset-0 bg-background/80 backdrop-blur-sm z-40 lg:hidden transition-opacity duration-200 ${mobileMenuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
                 }`}
               onClick={() => setMobileMenuOpen(false)}
             />
             {/* Sidebar */}
-            <div className={`fixed top-0 right-0 h-full w-72 bg-white shadow-lg z-50 transform transition-transform duration-200 ease-out ${mobileMenuOpen ? 'translate-x-0' : 'translate-x-full'
+            <div className={`fixed top-0 right-0 h-full w-72 bg-background shadow-lg z-50 transform transition-transform duration-200 ease-out ${mobileMenuOpen ? 'translate-x-0' : 'translate-x-full'
               }`}>
-              <div className="absolute top-0 left-0 right-0 p-4 border-b border-zinc-200 flex items-center justify-between">
-                <h2 className="text-sm font-medium text-zinc-900">Contents</h2>
+              <div className="absolute top-0 left-0 right-0 p-4 border-b border-border flex items-center justify-between">
+                <h2 className="text-sm font-medium text-foreground">Contents</h2>
                 <button
                   onClick={() => setMobileMenuOpen(false)}
-                  className="p-2 text-zinc-600 hover:text-zinc-900"
+                  className="p-2 text-muted-foreground hover:text-foreground"
                 >
                   <XIcon className="h-5 w-5" />
                 </button>
@@ -173,19 +178,19 @@ export default function Home() {
               )}
 
               {loading && (
-                <div className="mb-12 px-6 py-8 bg-zinc-50 rounded-lg border border-zinc-200">
+                <div className="mb-12 px-6 py-8 bg-muted rounded-lg border border-border">
                   <div className="space-y-4">
                     <div className="flex items-center justify-between mb-2">
-                      <h3 className="text-sm font-medium text-zinc-900">
+                      <h3 className="text-sm font-medium text-foreground">
                         {currentStep || 'Processing video...'}
                       </h3>
-                      <span className="text-sm font-medium text-zinc-500">
+                      <span className="text-sm font-medium text-muted-foreground">
                         {Math.round(progress)}%
                       </span>
                     </div>
-                    <div className="relative h-2 w-full bg-zinc-100 rounded-full overflow-hidden">
+                    <div className="relative h-2.5 w-full bg-muted rounded-full overflow-hidden">
                       <div
-                        className="absolute left-0 top-0 h-full bg-zinc-900 transition-all duration-500 ease-out animate-progress"
+                        className="absolute left-0 top-0 h-full bg-primary transition-all duration-500 ease-out animate-progress"
                         style={{ width: `${progress}%` }}
                       />
                     </div>
@@ -208,7 +213,7 @@ export default function Home() {
       {/* Initial state (no result) */}
       {!result && (
         <div className="max-w-3xl mx-auto px-4 py-6 lg:px-6 lg:py-12">
-          <h1 className="text-3xl lg:text-4xl font-sans font-semibold text-zinc-900 mb-6 lg:mb-12 text-center">
+          <h1 className="text-3xl lg:text-4xl font-sans font-semibold text-foreground mb-6 lg:mb-12 text-center">
             YouTube Transcript Processor
           </h1>
           <VideoSearch
@@ -218,19 +223,19 @@ export default function Home() {
             onSubmit={processTranscript}
           />
           {loading && (
-            <div className="mt-8 px-6 py-8 bg-zinc-50 rounded-lg border border-zinc-200">
+            <div className="mt-8 px-6 py-8 bg-muted rounded-lg border border-border">
               <div className="space-y-4">
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-medium text-zinc-900">
+                  <h3 className="text-sm font-medium text-foreground">
                     {currentStep || 'Processing video...'}
                   </h3>
-                  <span className="text-sm font-medium text-zinc-500">
+                  <span className="text-sm font-medium text-muted-foreground">
                     {Math.round(progress)}%
                   </span>
                 </div>
-                <div className="relative h-2 w-full bg-zinc-100 rounded-full overflow-hidden">
+                <div className="relative h-2.5 w-full bg-muted rounded-full overflow-hidden">
                   <div
-                    className="absolute left-0 top-0 h-full bg-zinc-900 transition-all duration-500 ease-out animate-progress"
+                    className="absolute left-0 top-0 h-full bg-primary transition-all duration-500 ease-out animate-progress"
                     style={{ width: `${progress}%` }}
                   />
                 </div>

@@ -15,10 +15,10 @@ export function VideoInfoCard({ videoInfo }: VideoInfoCardProps) {
                     className="object-cover w-full h-full rounded-lg"
                 />
             </div>
-            <h1 className="text-2xl lg:text-3xl font-medium tracking-tight text-zinc-900 mb-3 lg:mb-4">
+            <h1 className="text-2xl lg:text-3xl font-medium text-foreground mb-3 lg:mb-4">
                 {videoInfo.title}
             </h1>
-            <div className="text-sm text-zinc-600 space-y-1">
+            <div className="text-sm text-muted-foreground space-y-1">
                 <p>Channel: {videoInfo.channelName}</p>
                 <p>Published: {new Date(videoInfo.publishedAt).toLocaleDateString()}</p>
             </div>

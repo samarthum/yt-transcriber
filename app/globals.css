@@ -5,9 +5,47 @@
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 20 20% 15%;
-    --border: 220 13% 91%;
-    /* Subtle colors for a refined look */
+    --foreground: 20 14.3% 4.1%;
+    --card: 0 0% 100%;
+    --card-foreground: 20 14.3% 4.1%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 20 14.3% 4.1%;
+    --primary: 215 25% 27%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 60 4.8% 95.9%;
+    --secondary-foreground: 24 9.8% 10%;
+    --muted: 215 25% 96%;
+    --muted-foreground: 215 20% 45%;
+    --accent: 60 4.8% 95.9%;
+    --accent-foreground: 24 9.8% 10%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 60 9.1% 97.8%;
+    --border: 215 25% 93%;
+    --input: 215 25% 93%;
+    --ring: 215 25% 27%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 20 14.3% 4.1%;
+    --foreground: 60 9.1% 97.8%;
+    --card: 20 14.3% 4.1%;
+    --card-foreground: 60 9.1% 97.8%;
+    --popover: 20 14.3% 4.1%;
+    --popover-foreground: 60 9.1% 97.8%;
+    --primary: 215 25% 65%;
+    --primary-foreground: 215 25% 12%;
+    --secondary: 12 6.5% 15.1%;
+    --secondary-foreground: 60 9.1% 97.8%;
+    --muted: 215 25% 13%;
+    --muted-foreground: 215 20% 75%;
+    --accent: 12 6.5% 15.1%;
+    --accent-foreground: 60 9.1% 97.8%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 60 9.1% 97.8%;
+    --border: 215 25% 15%;
+    --input: 215 25% 15%;
+    --ring: 24 5.7% 82.9%;
   }
 
   * {
@@ -24,12 +62,12 @@
   h4,
   h5,
   h6 {
-    @apply font-sans font-semibold tracking-tight text-zinc-900;
+    @apply font-sans font-semibold tracking-tight text-foreground;
   }
 }
 
 .prose {
-  @apply text-[15px] leading-relaxed text-zinc-600;
+  @apply text-[15px] leading-relaxed text-muted-foreground;
   max-width: 65ch;
 }
 
@@ -41,7 +79,7 @@
 .prose h6,
 .prose :is(h1, h2, h3, h4, h5, h6) {
   font-family: var(--font-inter) !important;
-  @apply font-semibold text-zinc-900;
+  @apply font-semibold text-foreground;
 }
 
 /* Specific heading sizes */
@@ -50,11 +88,11 @@
 }
 
 .prose h2 {
-  @apply text-xl font-medium text-zinc-900 mt-12 mb-4 scroll-mt-8;
+  @apply text-xl font-medium text-foreground mt-12 mb-4 scroll-mt-8;
 }
 
 .prose h3 {
-  @apply text-xl mt-8 mb-4;
+  @apply text-xl mt-8 mb-4 text-foreground;
 }
 
 .prose p {
@@ -71,11 +109,11 @@
 
 /* Card styles */
 .card-title {
-  @apply font-sans text-2xl font-semibold text-zinc-900;
+  @apply font-sans text-2xl font-semibold text-foreground;
 }
 
 .section-title {
-  @apply font-sans text-3xl font-semibold text-zinc-900 mb-6;
+  @apply font-sans text-3xl font-semibold text-foreground mb-6;
 }
 
 /* Add smooth scrolling to the whole page */
@@ -85,18 +123,18 @@ html {
 
 /* Add styles for the active section in sidebar */
 .sidebar-link-active {
-  @apply bg-zinc-50 text-zinc-900 font-medium;
+  @apply bg-muted text-foreground font-medium;
 }
 
 /* Smooth transitions */
 .custom-transition {
-  @apply transition-all duration-200 ease-in-out;
+  @apply transition-all duration-300 ease-in-out;
 }
 
 /* Scrollbar styles */
 .overflow-y-auto {
   scrollbar-width: thin;
-  scrollbar-color: theme('colors.zinc.200') transparent;
+  scrollbar-color: hsl(var(--muted)) transparent;
 }
 
 .overflow-y-auto::-webkit-scrollbar {
@@ -108,7 +146,7 @@ html {
 }
 
 .overflow-y-auto::-webkit-scrollbar-thumb {
-  background-color: theme('colors.zinc.200');
+  background-color: hsl(var(--muted));
   border-radius: 3px;
 }
 
@@ -116,20 +154,22 @@ html {
 @keyframes progress {
   from {
     transform: translateX(-100%);
+    opacity: 0;
   }
 
   to {
     transform: translateX(0);
+    opacity: 1;
   }
 }
 
 .animate-progress {
-  animation: progress 1s ease-out;
+  animation: progress 0.6s ease-out;
 }
 
 /* Update VideoInfoCard styles */
 .video-info-title {
-  @apply text-3xl font-medium text-zinc-900 tracking-tight;
+  @apply text-3xl font-medium text-foreground tracking-tight;
 }
 
 /* Add these styles instead */
@@ -151,6 +191,50 @@ html {
   to {
     transform: translateX(100%);
   }
+}
+
+/* Add dark mode support for prose content */
+.dark .prose {
+  @apply prose-invert;
+  color: hsl(var(--muted-foreground));
+}
+
+.dark .prose h1,
+.dark .prose h2,
+.dark .prose h3,
+.dark .prose h4,
+.dark .prose h5,
+.dark .prose h6 {
+  @apply text-foreground;
+}
+
+.dark .prose p,
+.dark .prose ul,
+.dark .prose ol,
+.dark .prose blockquote {
+  @apply text-muted-foreground/90;
+}
+
+/* Card dark mode styles */
+.dark .bg-card {
+  @apply bg-background border-border;
+}
+
+/* Add a glow effect to the progress bar in dark mode */
+.dark .animate-progress {
+  box-shadow: 0 0 30px hsl(var(--primary) / 0.2);
+}
+
+/* Smooth out the progress bar animation */
+.animate-progress {
+  transition: width 0.5s ease-out;
+}
+
+/* Subtle gradient overlay for the progress bar */
+.animate-progress {
+  background: linear-gradient(to right,
+      hsl(var(--primary)),
+      hsl(var(--primary) / 0.85));
 }
 
 /* Rest of your existing styles... */

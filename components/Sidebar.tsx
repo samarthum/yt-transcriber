@@ -74,8 +74,8 @@ export function Sidebar({ transcript, summary, onSectionClick }: SidebarProps) {
                     }}
                     className={`w-full text-left px-4 py-2.5 text-[13px] transition-colors rounded
                         ${activeSection === section.id
-                            ? 'bg-zinc-100/80 text-zinc-900 font-medium'
-                            : 'text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900'}`}
+                            ? 'bg-muted text-foreground font-medium'
+                            : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'}`}
                 >
                     {section.title}
                 </button>
