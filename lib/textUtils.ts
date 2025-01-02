@@ -53,4 +53,27 @@ export function chunkText(
     }
 
     return chunks;
+}
+
+export function extractHeadings(markdown: string): Array<{ id: string, text: string, level: number }> {
+    const headings: Array<{ id: string, text: string, level: number }> = []
+    const lines = markdown.split('\n')
+
+    lines.forEach((line) => {
+        // Match markdown headings (## Heading)
+        const match = line.match(/^(#{2,4})\s+(.+)/)
+        if (match) {
+            const level = match[1].length
+            const text = match[2]
+            // Create an ID from the heading text
+            const id = text
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/(^-|-$)/g, '')
+
+            headings.push({ id, text, level })
+        }
+    })
+
+    return headings
 } 
