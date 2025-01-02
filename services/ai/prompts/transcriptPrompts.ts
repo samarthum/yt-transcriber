@@ -1,9 +1,16 @@
-export const TRANSCRIPT_FORMAT_PROMPT = `Rewrite this transcript text as well-structured Markdown in English:
+export const TRANSCRIPT_FORMAT_PROMPT = `Format this section (PART {partNumber} of {totalParts}) of a transcript as well-structured Markdown in English.
 
+PREVIOUS CONTEXT:
+{previousContext}
+
+CURRENT SECTION TO FORMAT:
 {text}
 
+NEXT CONTEXT:
+{nextContext}
+
 REQUIREMENTS:
-1. Format the content into clear, readable paragraphs with natural transitions
+1. Format ONLY the CURRENT SECTION into clear, readable paragraphs
 2. Use ## for major topic changes or significant shifts in conversation
 3. Focus on flowing narrative paragraphs rather than bullet points
 4. Use bullet points sparingly and only when listing:
@@ -14,8 +21,9 @@ REQUIREMENTS:
 7. Maintain chronological flow and conversational context
 8. Always output in English, even if the input is in another language
 9. If translating, maintain accuracy and natural flow
+10. Do not add concluding paragraphs unless this is the final part ({partNumber} equals {totalParts})
 
-Format the output as clean, narrative-focused Markdown.`;
+Format ONLY the CURRENT SECTION as clean, narrative-focused Markdown.`;
 
 export const SUMMARY_PROMPT = `Provide a concise summary of this transcript in English:
 

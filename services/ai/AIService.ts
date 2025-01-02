@@ -86,7 +86,18 @@ export class AIService implements IAIService {
 
             for (let i = 0; i < chunks.length; i++) {
                 const chunk = chunks[i];
-                const prompt = TRANSCRIPT_FORMAT_PROMPT.replace('{text}', chunk);
+
+                // Get context from previous and next chunks
+                const previousContext = i > 0 ? chunks[i - 1].slice(-300) : '';
+                const nextContext = i < chunks.length - 1 ? chunks[i + 1].slice(0, 300) : '';
+
+                // Create context-aware prompt
+                const prompt = TRANSCRIPT_FORMAT_PROMPT
+                    .replace('{text}', chunk)
+                    .replace('{partNumber}', (i + 1).toString())
+                    .replace('{totalParts}', chunks.length.toString())
+                    .replace('{previousContext}', previousContext || '(Start of transcript)')
+                    .replace('{nextContext}', nextContext || '(End of transcript)');
 
                 try {
                     const chunkResult = await this.processChunkWithRetry(prompt);
@@ -102,6 +113,7 @@ export class AIService implements IAIService {
                 }
             }
 
+            // Join chunks with a newline separator
             return formattedChunks.join('\n\n');
         } catch (error) {
             throw new AIServiceError(
