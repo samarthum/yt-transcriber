@@ -1,5 +1,4 @@
 # YouTube Transcript Processor
-
 A powerful web application that processes YouTube video transcripts using AI to create structured, readable content with summaries and navigation. Built with Next.js, TypeScript, and Claude AI.
 
 ## Features
