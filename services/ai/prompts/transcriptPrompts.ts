@@ -16,7 +16,7 @@ REQUIREMENTS:
 4. Use bullet points sparingly and only when listing:
    - Multiple distinct speakers
    - Explicit step-by-step instructions
-5. Break long discussions into digestible paragraphs with clear topic sentences
+5. Break long discussions into digestible paragraphs with clear topic sentences. A single topic can have multiple paragraphs.
 6. Preserve speaker names if present (in **bold**)
 7. Maintain chronological flow and conversational context
 8. Always output in English, even if the input is in another language
