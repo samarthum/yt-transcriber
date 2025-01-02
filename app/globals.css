@@ -29,9 +29,8 @@
 }
 
 .prose {
-  @apply font-serif text-lg leading-relaxed text-zinc-700;
-  max-width: 68ch;
-  /* FS-style readable line length */
+  @apply text-[15px] leading-relaxed text-zinc-600;
+  max-width: 65ch;
 }
 
 .prose h1,
@@ -51,7 +50,7 @@
 }
 
 .prose h2 {
-  @apply text-2xl mt-12 mb-4;
+  @apply text-xl font-medium text-zinc-900 mt-12 mb-4 scroll-mt-8;
 }
 
 .prose h3 {
@@ -59,15 +58,15 @@
 }
 
 .prose p {
-  @apply mb-6;
+  @apply mb-4;
 }
 
 .prose ul {
-  @apply my-6 ml-6 list-disc;
+  @apply my-4 ml-6 list-disc;
 }
 
 .prose li {
-  @apply mb-2;
+  @apply mb-1;
 }
 
 /* Card styles */
@@ -77,6 +76,81 @@
 
 .section-title {
   @apply font-sans text-3xl font-semibold text-zinc-900 mb-6;
+}
+
+/* Add smooth scrolling to the whole page */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Add styles for the active section in sidebar */
+.sidebar-link-active {
+  @apply bg-zinc-50 text-zinc-900 font-medium;
+}
+
+/* Smooth transitions */
+.custom-transition {
+  @apply transition-all duration-200 ease-in-out;
+}
+
+/* Scrollbar styles */
+.overflow-y-auto {
+  scrollbar-width: thin;
+  scrollbar-color: theme('colors.zinc.200') transparent;
+}
+
+.overflow-y-auto::-webkit-scrollbar {
+  width: 3px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb {
+  background-color: theme('colors.zinc.200');
+  border-radius: 3px;
+}
+
+/* Progress bar animation */
+@keyframes progress {
+  from {
+    transform: translateX(-100%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
+.animate-progress {
+  animation: progress 1s ease-out;
+}
+
+/* Update VideoInfoCard styles */
+.video-info-title {
+  @apply text-3xl font-medium text-zinc-900 tracking-tight;
+}
+
+/* Add these styles instead */
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideOut {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(100%);
+  }
 }
 
 /* Rest of your existing styles... */

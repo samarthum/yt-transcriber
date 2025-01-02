@@ -11,7 +11,7 @@ export class AIService implements IAIService {
     private readonly client: Anthropic;
     private readonly defaultModel: string;
     private readonly MAX_CHUNK_SIZE = 8000; // ~8000 tokens for output context
-    private readonly MAX_OUTPUT_TOKENS = 4000;
+    private readonly MAX_OUTPUT_TOKENS = 8000;
 
     constructor(apiKey: string, defaultModel: string) {
         if (!apiKey) {
@@ -80,7 +80,7 @@ export class AIService implements IAIService {
         onProgress?: (progress: number) => void
     ): Promise<string> {
         try {
-            const chunks = chunkText(text, this.MAX_CHUNK_SIZE);
+            const chunks = chunkText(text, this.MAX_CHUNK_SIZE, 500);
             let formattedChunks: string[] = [];
             let totalProgress = 0;
 
