@@ -5,7 +5,7 @@ import { TranscriptContent } from '@/components/TranscriptContent'
 import { TableOfContents } from '@/components/TableOfContents'
 import { extractHeadings } from '@/lib/textUtils'
 import { Button } from '@/components/ui/button'
-import { Link } from 'next/link'
+import Link from 'next/link'
 
 export default async function TranscriptPage({
     params
