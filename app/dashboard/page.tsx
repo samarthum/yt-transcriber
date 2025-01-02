@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { formatDistanceToNow } from 'date-fns'
+import Image from 'next/image'
 
 export default async function DashboardPage() {
     const supabase = createClient()
@@ -29,10 +30,12 @@ export default async function DashboardPage() {
                                 <CardHeader className="relative pb-0">
                                     {transcript.thumbnail_url && (
                                         <div className="aspect-video relative overflow-hidden rounded-lg">
-                                            <img
+                                            <Image
                                                 src={transcript.thumbnail_url}
                                                 alt={transcript.video_title}
-                                                className="object-cover w-full h-full"
+                                                fill
+                                                className="object-cover"
+                                                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                                             />
                                         </div>
                                     )}
@@ -55,7 +58,7 @@ export default async function DashboardPage() {
             ) : (
                 <div className="text-center py-12">
                     <p className="text-muted-foreground mb-4">
-                        You haven't processed any videos yet
+                        You haven&apos;t processed any videos yet
                     </p>
                     <Button asChild>
                         <Link href="/">Process Your First Video</Link>
