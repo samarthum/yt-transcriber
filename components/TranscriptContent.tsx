@@ -8,24 +8,32 @@ interface TranscriptContentProps {
 
 export function TranscriptContent({ summary, transcript }: TranscriptContentProps) {
     return (
-        <div className="space-y-16">
-            <section>
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="section-title">Key Takeaways</CardTitle>
+        <div className="space-y-12 lg:space-y-16">
+            <section id="key-takeaways">
+                <Card className="bg-white border-zinc-200/80">
+                    <CardHeader className="pb-3">
+                        <CardTitle className="text-lg lg:text-xl font-medium">Key Takeaways</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="prose [&_h1]:font-sans [&_h2]:font-sans [&_h3]:font-sans [&_strong]:font-sans">
+                        <div className="prose prose-zinc prose-sm">
                             <ReactMarkdown>{summary}</ReactMarkdown>
                         </div>
                     </CardContent>
                 </Card>
             </section>
 
-            <section>
-                <h2 className="section-title">Full Transcript</h2>
-                <div className="prose [&_h1]:font-sans [&_h2]:font-sans [&_h3]:font-sans [&_strong]:font-sans">
-                    <ReactMarkdown>{transcript}</ReactMarkdown>
+            <section className="transcript-content">
+                <div className="prose prose-zinc prose-headings:font-medium prose-headings:text-zinc-900">
+                    <ReactMarkdown
+                        components={{
+                            h2: ({ node, ...props }) => {
+                                const id = props.children?.toString().toLowerCase().replace(/[^\w]+/g, '-');
+                                return <h2 id={id} {...props} className="text-lg lg:text-xl scroll-mt-20 lg:scroll-mt-8 mb-4" />
+                            }
+                        }}
+                    >
+                        {transcript}
+                    </ReactMarkdown>
                 </div>
             </section>
         </div>

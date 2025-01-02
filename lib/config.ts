@@ -28,7 +28,7 @@ export function getConfig(): Config {
         },
         anthropic: {
             apiKey: anthropicApiKey,
-            defaultModel: "claude-3-5-sonnet-20241022",
+            defaultModel: "claude-3-5-haiku-20241022",
         },
     };
 } 
