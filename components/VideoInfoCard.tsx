@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { Card } from "@/components/ui/card"
 import { VideoInfo } from "@/types/transcript"
 import { useAuth } from '@/contexts/AuthContext'
@@ -40,14 +41,19 @@ export function VideoInfoCard({ videoInfo }: VideoInfoCardProps) {
     }
 
     return (
-        <Card className="p-6">
-            <div className="relative aspect-video w-full mb-6">
-                <img
-                    src={videoInfo.thumbnailUrl}
-                    alt={videoInfo.title}
-                    className="object-cover w-full h-full rounded-lg"
-                />
-            </div>
+        <Card className="overflow-hidden">
+            {videoInfo.thumbnailUrl && (
+                <div className="aspect-video relative">
+                    <Image
+                        src={videoInfo.thumbnailUrl}
+                        alt={videoInfo.title}
+                        fill
+                        className="object-cover"
+                        sizes="(max-width: 768px) 100vw, 300px"
+                        priority
+                    />
+                </div>
+            )}
             <h1 className="text-xl font-medium text-foreground mb-3">
                 {videoInfo.title}
             </h1>
