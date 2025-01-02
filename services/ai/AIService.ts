@@ -10,8 +10,8 @@ import { chunkText } from '@/lib/textUtils';
 export class AIService implements IAIService {
     private readonly client: Anthropic;
     private readonly defaultModel: string;
-    private readonly MAX_CHUNK_SIZE = 8000; // ~8000 tokens for output context
-    private readonly MAX_OUTPUT_TOKENS = 8000;
+    private readonly MAX_CHUNK_SIZE = 16000; // ~16000 characters (~4000 words)
+    private readonly MAX_OUTPUT_TOKENS = 16000;
 
     constructor(apiKey: string, defaultModel: string) {
         if (!apiKey) {

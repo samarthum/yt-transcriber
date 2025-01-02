@@ -15,7 +15,7 @@ export function estimateTokens(text: string): number {
 
 export function chunkText(
     text: string,
-    maxChunkSize: number = 8000,
+    maxChunkSize: number = 16000,
     overlap: number = 500
 ): string[] {
     const chunks: string[] = [];
