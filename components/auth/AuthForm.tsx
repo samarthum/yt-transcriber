@@ -23,6 +23,8 @@ export function AuthForm({ type }: AuthFormProps) {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
+    const message = searchParams.get('message')
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         setError(null)
@@ -70,6 +72,11 @@ export function AuthForm({ type }: AuthFormProps) {
                 </CardDescription>
             </CardHeader>
             <CardContent>
+                {message && (
+                    <Alert className="mb-8">
+                        <AlertDescription>{message}</AlertDescription>
+                    </Alert>
+                )}
                 <form onSubmit={handleSubmit} className="space-y-4">
                     {type === 'register' && (
                         <div className="space-y-2">
