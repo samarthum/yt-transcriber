@@ -4,6 +4,8 @@ import { VideoInfoCard } from '@/components/VideoInfoCard'
 import { TranscriptContent } from '@/components/TranscriptContent'
 import { TableOfContents } from '@/components/TableOfContents'
 import { extractHeadings } from '@/lib/textUtils'
+import { Button } from '@/components/ui/button'
+import { Link } from 'next/link'
 
 export default async function TranscriptPage({
     params
@@ -33,23 +35,31 @@ export default async function TranscriptPage({
     const headings = extractHeadings(transcript.structured_content)
 
     return (
-        <div className="grid gap-8 lg:grid-cols-[220px,1fr,300px]">
-            <div className="hidden lg:block">
-                <div className="sticky top-8">
-                    <TableOfContents headings={headings} />
-                </div>
+        <div className="container max-w-screen-xl px-2 sm:px-4 py-4 sm:py-8">
+            <div className="mb-8">
+                <Button variant="outline" asChild>
+                    <Link href="/dashboard">← Back to Dashboard</Link>
+                </Button>
             </div>
-            <div className="space-y-8">
-                <TranscriptContent
-                    summary={transcript.summary}
-                    transcript={transcript.structured_content}
-                />
-            </div>
-            <aside className="space-y-6">
-                <div className="sticky top-8">
-                    <VideoInfoCard videoInfo={videoInfo} />
+
+            <div className="grid gap-4 sm:gap-8 lg:grid-cols-[220px,1fr,300px]">
+                <div className="hidden lg:block">
+                    <div className="sticky top-8">
+                        <TableOfContents headings={headings} />
+                    </div>
                 </div>
-            </aside>
+                <div className="space-y-6 sm:space-y-8">
+                    <TranscriptContent
+                        summary={transcript.summary}
+                        transcript={transcript.structured_content}
+                    />
+                </div>
+                <aside className="space-y-6">
+                    <div className="sticky top-8">
+                        <VideoInfoCard videoInfo={videoInfo} />
+                    </div>
+                </aside>
+            </div>
         </div>
     )
 }
