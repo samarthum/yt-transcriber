@@ -72,8 +72,8 @@ export class TranscriptService implements ITranscriptService {
 
             const data: RapidAPIResponse = await response.json();
 
-            // Return the full text if available, otherwise join transcript segments
-            return data.text || data.transcript.map(segment => segment.text).join(' ');
+            // Return the full text if available, otherwise try to join transcript segments
+            return data.text || (data.transcript?.map(segment => segment.text).join(' ') ?? '');
         } catch (error) {
             console.error('RapidAPI transcript fetch failed:', error);
 
