@@ -1,11 +1,9 @@
 'use client'
 
-import { VideoProcessor } from './VideoProcessor'
+import { useVideoProcessor } from './VideoProcessor'
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { ProcessingStatus } from './ProcessingStatus'
-import { VideoInfoCard } from './VideoInfoCard'
-import { TranscriptContent } from './TranscriptContent'
 
 export function VideoSearch() {
     const {
@@ -15,9 +13,9 @@ export function VideoSearch() {
         error,
         progress,
         currentStep,
-        result,
+        isRedirecting,
         processTranscript
-    } = VideoProcessor()
+    } = useVideoProcessor()
 
     return (
         <>
@@ -29,13 +27,14 @@ export function VideoSearch() {
                         value={url}
                         onChange={(e) => setUrl(e.target.value)}
                         className="h-11 px-4 text-base font-sans bg-muted border-input focus-visible:ring-1 focus-visible:ring-ring"
+                        disabled={isRedirecting}
                     />
                     <Button
                         onClick={processTranscript}
-                        disabled={loading || !url}
+                        disabled={loading || !url || isRedirecting}
                         className="h-11 px-5 font-sans text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90"
                     >
-                        {loading ? 'Processing...' : 'Process'}
+                        {loading ? 'Processing...' : isRedirecting ? 'Redirecting...' : 'Process'}
                     </Button>
                 </div>
                 {error && (
@@ -43,22 +42,8 @@ export function VideoSearch() {
                 )}
             </div>
 
-            {loading && (
+            {(loading || isRedirecting) && (
                 <ProcessingStatus progress={progress} currentStep={currentStep} />
-            )}
-
-            {result && (
-                <div className="grid gap-8 lg:grid-cols-[1fr,300px]">
-                    <div className="space-y-8">
-                        <TranscriptContent
-                            summary={result.summary}
-                            transcript={result.structuredTranscript}
-                        />
-                    </div>
-                    <aside className="space-y-6">
-                        <VideoInfoCard videoInfo={result.videoInfo} />
-                    </aside>
-                </div>
             )}
         </>
     )

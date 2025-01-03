@@ -56,24 +56,32 @@ export function chunkText(
 }
 
 export function extractHeadings(markdown: string): Array<{ id: string, text: string, level: number }> {
-    const headings: Array<{ id: string, text: string, level: number }> = []
-    const lines = markdown.split('\n')
+    const headings: Array<{ id: string, text: string, level: number }> = [];
+    const lines = markdown.split('\n');
+
+    // Add "Key Takeaways" as the first heading
+    headings.push({
+        id: 'key-takeaways',
+        text: 'Key Takeaways',
+        level: 2
+    });
 
     lines.forEach((line) => {
-        // Match markdown headings (## Heading)
-        const match = line.match(/^(#{2,4})\s+(.+)/)
+        // Match only ## and ### headings (level 2 and 3)
+        const match = line.match(/^(#{2,3})\s+(.+)$/);
         if (match) {
-            const level = match[1].length
-            const text = match[2]
-            // Create an ID from the heading text
+            const level = match[1].length;
+            const text = match[2].trim();
+
+            // Create a URL-friendly ID
             const id = text
                 .toLowerCase()
                 .replace(/[^a-z0-9]+/g, '-')
-                .replace(/(^-|-$)/g, '')
+                .replace(/(^-|-$)/g, '');
 
-            headings.push({ id, text, level })
+            headings.push({ id, text, level });
         }
-    })
+    });
 
-    return headings
+    return headings;
 } 

@@ -25,12 +25,60 @@ export function TranscriptContent({ summary, transcript }: TranscriptContentProp
             </section>
 
             <section className="transcript-content">
-                <div className="prose prose-zinc prose-headings:font-medium prose-headings:text-zinc-900 max-w-none px-0 sm:px-4">
+                <div className="prose prose-zinc max-w-none px-0 sm:px-4">
                     <ReactMarkdown
                         components={{
                             h2: ({ node, ...props }) => {
-                                const id = props.children?.toString().toLowerCase().replace(/[^\w]+/g, '-');
-                                return <h2 id={id} {...props} className="text-lg lg:text-xl scroll-mt-20 lg:scroll-mt-8 mb-4" />
+                                const id = props.children
+                                    ?.toString()
+                                    .toLowerCase()
+                                    .replace(/[^a-z0-9]+/g, '-')
+                                    .replace(/(^-|-$)/g, '');
+                                return (
+                                    <h2
+                                        id={id}
+                                        {...props}
+                                        className="
+                                            text-xl lg:text-2xl 
+                                            font-bold 
+                                            text-foreground 
+                                            mt-12 mb-6 
+                                            scroll-mt-24 
+                                            border-b border-border 
+                                            pb-4
+                                            !important
+                                        "
+                                        style={{
+                                            fontSize: '1.5rem',
+                                            fontWeight: 700,
+                                        }}
+                                    />
+                                )
+                            },
+                            h3: ({ node, ...props }) => {
+                                const id = props.children
+                                    ?.toString()
+                                    .toLowerCase()
+                                    .replace(/[^a-z0-9]+/g, '-')
+                                    .replace(/(^-|-$)/g, '');
+                                return (
+                                    <h3
+                                        id={id}
+                                        {...props}
+                                        className="
+                                            text-lg lg:text-xl 
+                                            font-medium 
+                                            text-muted-foreground 
+                                            mt-8 mb-4 
+                                            scroll-mt-24
+                                            !important
+                                        "
+                                        style={{
+                                            fontSize: '1.25rem',
+                                            fontWeight: 500,
+                                        }}
+                                    />
+                                )
                             }
                         }}
                     >

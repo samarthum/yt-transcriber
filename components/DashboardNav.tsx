@@ -5,9 +5,14 @@ import { usePathname } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { signOut } from '@/lib/actions'
+import { UserCircle } from 'lucide-react'
 
 export function DashboardNav() {
     const pathname = usePathname()
+
+    const isActive = (path: string) => {
+        return pathname === path ? 'text-foreground' : 'text-muted-foreground'
+    }
 
     return (
         <header className="border-b">
@@ -16,17 +21,24 @@ export function DashboardNav() {
                     <Link href="/dashboard" className="font-bold text-lg">
                         YT Transcript
                     </Link>
-                    {pathname !== '/dashboard/app' && (
+                    {/* <nav className="flex items-center gap-4">
                         <Link
                             href="/dashboard/app"
-                            className="text-sm text-muted-foreground hover:text-foreground"
+                            className={`text-sm hover:text-foreground transition-colors ${isActive('/dashboard/app')}`}
                         >
                             Process Video
                         </Link>
-                    )}
+                    </nav> */}
                 </div>
                 <div className="flex items-center gap-4">
                     <ThemeToggle />
+                    <Link
+                        href="/dashboard/profile"
+                        className={`flex items-center gap-2 text-sm hover:text-foreground transition-colors ${isActive('/dashboard/profile')}`}
+                    >
+                        <UserCircle className="h-4 w-4" />
+                        Profile
+                    </Link>
                     <form action={signOut}>
                         <Button variant="outline" size="sm">
                             Sign Out

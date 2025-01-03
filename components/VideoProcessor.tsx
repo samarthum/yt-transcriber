@@ -3,15 +3,24 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import type { ProcessedTranscript } from '@/types/transcript'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { ProcessingStatus } from '@/components/ProcessingStatus'
+import { VideoInfoCard } from '@/components/VideoInfoCard'
+import { TranscriptContent } from '@/components/TranscriptContent'
+import { VideoError, DatabaseError } from '@/lib/errors'
+import type { ProcessingResult, ProcessingUpdate } from '@/types/transcript'
 
-export function VideoProcessor() {
+export function useVideoProcessor() {
     const [url, setUrl] = useState('')
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [progress, setProgress] = useState(0)
     const [currentStep, setCurrentStep] = useState('')
-    const [result, setResult] = useState<ProcessedTranscript | null>(null)
+    const [isRedirecting, setIsRedirecting] = useState(false)
+    const [result, setResult] = useState<ProcessingResult | null>(null)
+
     const router = useRouter()
     const supabase = createClient()
 
@@ -20,8 +29,11 @@ export function VideoProcessor() {
             setLoading(true)
             setError(null)
             setProgress(0)
-            setCurrentStep('Starting process...')
-            setResult(null)
+            setCurrentStep('Starting...')
+
+            if (!url.includes('youtube.com/') && !url.includes('youtu.be/')) {
+                throw new VideoError('Please enter a valid YouTube URL')
+            }
 
             const response = await fetch('/api/process-transcript', {
                 method: 'POST',
@@ -32,80 +44,73 @@ export function VideoProcessor() {
             })
 
             if (!response.ok) {
-                throw new Error('Failed to process transcript')
+                const error = await response.json()
+                throw new Error(error.message || 'Failed to process video')
             }
 
             const reader = response.body?.getReader()
-            if (!reader) throw new Error('No response body')
+            if (!reader) throw new Error('Failed to start processing')
 
-            let finalResult: ProcessedTranscript | null = null
-            let buffer = ''
-
+            // Process streaming response
             while (true) {
                 const { done, value } = await reader.read()
                 if (done) break
 
-                buffer += new TextDecoder().decode(value)
-                const lines = buffer.split('\n')
-                buffer = lines.pop() || ''
+                const text = new TextDecoder().decode(value)
+                const lines = text.split('\n').filter(Boolean)
 
                 for (const line of lines) {
-                    if (!line) continue
-                    if (!line.startsWith('data: ')) continue
+                    const data = JSON.parse(line.replace('data: ', '')) as ProcessingUpdate
 
-                    try {
-                        const data = JSON.parse(line.slice(5))
-                        console.log('Received data:', data)
+                    if (data.error) {
+                        throw new Error(data.error)
+                    }
 
-                        if (data.progress) {
-                            setProgress(data.progress)
-                            setCurrentStep(data.step)
-                        }
-                        // Check if this is the final data with transcript
-                        if (data.structuredTranscript && data.summary && data.videoInfo) {
-                            finalResult = {
-                                structuredTranscript: data.structuredTranscript,
-                                summary: data.summary,
-                                videoInfo: data.videoInfo
+                    setProgress(data.progress || 0)
+                    setCurrentStep(data.step || '')
+
+                    if (data.done) {
+                        if (data.videoInfo && data.structuredTranscript && data.summary) {
+                            const processedResult = data as ProcessingResult;
+                            setResult(processedResult)
+
+                            // Save to Supabase immediately after getting the result
+                            const { data: savedTranscript, error: saveError } = await supabase
+                                .from('transcripts')
+                                .insert({
+                                    user_id: (await supabase.auth.getUser()).data.user?.id,
+                                    video_id: processedResult.videoInfo.videoId,
+                                    video_title: processedResult.videoInfo.title,
+                                    channel_name: processedResult.videoInfo.channelName,
+                                    thumbnail_url: processedResult.videoInfo.thumbnailUrl,
+                                    structured_content: processedResult.structuredTranscript,
+                                    summary: processedResult.summary,
+                                })
+                                .select()
+                                .single()
+
+                            if (saveError) {
+                                throw new DatabaseError('Failed to save transcript')
                             }
-                            setResult(finalResult)
+
+                            // Show redirecting state
+                            setIsRedirecting(true)
+                            setCurrentStep('Redirecting to transcript...')
+
+                            // Redirect using the database ID
+                            setTimeout(() => {
+                                router.push(`/dashboard/transcripts/${savedTranscript.id}`)
+                            }, 2000)
                         }
-                    } catch (e) {
-                        console.error('Error parsing line:', line, e)
+                        break
                     }
                 }
             }
 
-            if (!finalResult) {
-                console.error('No final result received')
-                throw new Error('No result received')
-            }
-
-            console.log('Saving to Supabase:', finalResult)
-
-            // Save to Supabase
-            const { error: saveError } = await supabase
-                .from('transcripts')
-                .insert({
-                    user_id: (await supabase.auth.getUser()).data.user?.id,
-                    video_id: finalResult.videoInfo.videoId,
-                    video_title: finalResult.videoInfo.title,
-                    channel_name: finalResult.videoInfo.channelName,
-                    thumbnail_url: finalResult.videoInfo.thumbnailUrl,
-                    structured_content: finalResult.structuredTranscript,
-                    summary: finalResult.summary,
-                })
-
-            if (saveError) throw saveError
-
-            // Wait a moment to show the result before redirecting
-            setTimeout(() => {
-                router.push('/dashboard')
-            }, 2000)
-
         } catch (error) {
             console.error('Processing error:', error)
-            setError((error as Error).message)
+            setError(error instanceof Error ? error.message : 'An unexpected error occurred')
+            setIsRedirecting(false)
         } finally {
             setLoading(false)
         }
@@ -118,7 +123,8 @@ export function VideoProcessor() {
         error,
         progress,
         currentStep,
+        isRedirecting,
         result,
-        processTranscript,
+        processTranscript
     }
 } 

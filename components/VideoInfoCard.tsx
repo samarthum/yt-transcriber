@@ -54,12 +54,14 @@ export function VideoInfoCard({ videoInfo }: VideoInfoCardProps) {
                     />
                 </div>
             )}
-            <h1 className="text-xl font-medium text-foreground mb-3">
-                {videoInfo.title}
-            </h1>
-            <div className="text-sm text-muted-foreground space-y-1">
-                <p>Channel: {videoInfo.channelName}</p>
-                <p>Published: {new Date(videoInfo.publishedAt).toLocaleDateString()}</p>
+            <div className='p-3'>
+                <h1 className="text-xl font-medium text-foreground mb-3">
+                    {videoInfo.title}
+                </h1>
+                <div className="text-sm text-muted-foreground space-y-1">
+                    <p>Channel: {videoInfo.channelName}</p>
+                    <p>Published: {new Date(videoInfo.publishedAt).toLocaleDateString()}</p>
+                </div>
             </div>
         </Card>
     )
