@@ -25,9 +25,9 @@ export default async function DashboardPage() {
             {transcripts && transcripts.length > 0 ? (
                 <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                     {transcripts.map((transcript) => (
-                        <Link key={transcript.id} href={`/dashboard/transcripts/${transcript.id}`}>
-                            <Card className="p-1 md:p-4 h-full hover:shadow-md transition-shadow">
-                                <CardHeader className="relative pb-0">
+                        <Link className='p-0' key={transcript.id} href={`/dashboard/transcripts/${transcript.id}`}>
+                            <Card className="h-full hover:shadow-md transition-shadow">
+                                <CardHeader className="relative pb-0 p-2 md:p-4">
                                     {transcript.thumbnail_url && (
                                         <div className="aspect-video relative overflow-hidden rounded-lg">
                                             <Image
@@ -40,7 +40,7 @@ export default async function DashboardPage() {
                                         </div>
                                     )}
                                 </CardHeader>
-                                <CardContent className="pt-4">
+                                <CardContent className="pt-4 px-2 md:px-4">
                                     <h3 className="font-medium line-clamp-2 mb-2">
                                         {transcript.video_title}
                                     </h3>
