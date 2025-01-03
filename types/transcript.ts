@@ -34,7 +34,10 @@ export interface TranscriptOptions {
 }
 
 export interface RapidAPIResponse {
-    text: string;
-    duration: number;
-    offset: number;
+    text?: string;
+    transcript?: Array<{
+        text: string;
+        duration?: number;
+        offset?: number;
+    }>;
 } 
