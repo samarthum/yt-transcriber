@@ -26,7 +26,7 @@ export default async function DashboardPage() {
                 <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                     {transcripts.map((transcript) => (
                         <Link key={transcript.id} href={`/dashboard/transcripts/${transcript.id}`}>
-                            <Card className="h-full hover:shadow-md transition-shadow">
+                            <Card className="p-1 md:p-4 h-full hover:shadow-md transition-shadow">
                                 <CardHeader className="relative pb-0">
                                     {transcript.thumbnail_url && (
                                         <div className="aspect-video relative overflow-hidden rounded-lg">
